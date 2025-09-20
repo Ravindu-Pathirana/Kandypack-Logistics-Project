@@ -106,7 +106,7 @@ DROP TABLE IF EXISTS `CustomerContactNumber`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `CustomerContactNumber` (
-  `conatct_number` varchar(10) NOT NULL,
+  `contact number` varchar(10) NOT NULL,
   `customer_id` int NOT NULL,
   `is_primary` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`conatct_number`),
