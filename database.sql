@@ -106,10 +106,10 @@ DROP TABLE IF EXISTS `CustomerContactNumber`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `CustomerContactNumber` (
-  `contact number` varchar(10) NOT NULL,
+  `contact_number` varchar(10) NOT NULL,
   `customer_id` int NOT NULL,
   `is_primary` tinyint(1) DEFAULT '0',
-  PRIMARY KEY (`conatct_number`),
+  PRIMARY KEY (`contact_number`),
   KEY `customer_id` (`customer_id`),
   CONSTRAINT `customercontactnumber_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `Customer` (`customer_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
