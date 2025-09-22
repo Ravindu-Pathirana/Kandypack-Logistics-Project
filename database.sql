@@ -1,6 +1,14 @@
 -- MySQL dump 10.13  Distrib 9.3.0, for macos15 (arm64)
 --
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 -- Host: localhost    Database: KandypackLogistics
+=======
+-- Host: localhost    Database: kandypacklogistics
+>>>>>>> Stashed changes
+=======
+-- Host: localhost    Database: kandypacklogistics
+>>>>>>> Stashed changes
 -- ------------------------------------------------------
 -- Server version	9.3.0
 
@@ -106,10 +114,23 @@ DROP TABLE IF EXISTS `CustomerContactNumber`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `CustomerContactNumber` (
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+  `contact_number` varchar(10) NOT NULL,
+  `customer_id` int NOT NULL,
+  `is_primary` tinyint(1) DEFAULT '0',
+  PRIMARY KEY (`contact_number`),
+=======
+=======
+>>>>>>> Stashed changes
   `conatct_number` varchar(10) NOT NULL,
   `customer_id` int NOT NULL,
   `is_primary` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`conatct_number`),
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
   KEY `customer_id` (`customer_id`),
   CONSTRAINT `customercontactnumber_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `Customer` (`customer_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -450,6 +471,162 @@ LOCK TABLES `TrainRoutePattern` WRITE;
 /*!40000 ALTER TABLE `TrainRoutePattern` DISABLE KEYS */;
 /*!40000 ALTER TABLE `TrainRoutePattern` ENABLE KEYS */;
 UNLOCK TABLES;
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+=======
+>>>>>>> Stashed changes
+
+--
+-- Table structure for table `Truck`
+--
+
+DROP TABLE IF EXISTS `Truck`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `Truck` (
+  `truck_id` int NOT NULL AUTO_INCREMENT,
+  `store_id` int NOT NULL,
+  `plate_number` varchar(10) NOT NULL,
+  `is_available` tinyint(1) DEFAULT '1',
+  PRIMARY KEY (`truck_id`),
+  UNIQUE KEY `plate_number` (`plate_number`),
+  KEY `idx_truck_store` (`store_id`),
+  CONSTRAINT `truck_ibfk_1` FOREIGN KEY (`store_id`) REFERENCES `Store` (`store_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `Truck`
+--
+
+LOCK TABLES `Truck` WRITE;
+/*!40000 ALTER TABLE `Truck` DISABLE KEYS */;
+/*!40000 ALTER TABLE `Truck` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `TruckDelivery`
+--
+
+DROP TABLE IF EXISTS `TruckDelivery`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `TruckDelivery` (
+  `delivery_id` int NOT NULL AUTO_INCREMENT,
+  `store_id` int NOT NULL,
+  `order_id` int NOT NULL,
+  `route_id` varchar(5) NOT NULL,
+  `truck_id` int NOT NULL,
+  `scheduled_departure` datetime NOT NULL,
+  `actual_departure` datetime DEFAULT NULL,
+  `actual_arrival` datetime DEFAULT NULL,
+  `status` varchar(20) DEFAULT 'Scheduled',
+  PRIMARY KEY (`delivery_id`),
+  KEY `store_id` (`store_id`),
+  KEY `idx_delivery_order` (`order_id`),
+  KEY `idx_delivery_route` (`route_id`),
+  KEY `idx_delivery_truck` (`truck_id`),
+  KEY `idx_delivery_date` (`scheduled_departure`),
+  CONSTRAINT `truckdelivery_ibfk_1` FOREIGN KEY (`store_id`) REFERENCES `Store` (`store_id`),
+  CONSTRAINT `truckdelivery_ibfk_2` FOREIGN KEY (`order_id`) REFERENCES `Order` (`order_id`),
+  CONSTRAINT `truckdelivery_ibfk_3` FOREIGN KEY (`route_id`) REFERENCES `TruckRoute` (`route_id`),
+  CONSTRAINT `truckdelivery_ibfk_4` FOREIGN KEY (`truck_id`) REFERENCES `Truck` (`truck_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `TruckDelivery`
+--
+
+LOCK TABLES `TruckDelivery` WRITE;
+/*!40000 ALTER TABLE `TruckDelivery` DISABLE KEYS */;
+/*!40000 ALTER TABLE `TruckDelivery` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `TruckEmployeeAssignment`
+--
+
+DROP TABLE IF EXISTS `TruckEmployeeAssignment`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `TruckEmployeeAssignment` (
+  `assignment_id` int NOT NULL AUTO_INCREMENT,
+  `employee_id` int NOT NULL,
+  `truck_delivery_id` int NOT NULL,
+  `assigned_hours` double DEFAULT '0',
+  PRIMARY KEY (`assignment_id`),
+  KEY `idx_assignment_employee` (`employee_id`),
+  KEY `idx_assignment_delivery` (`truck_delivery_id`),
+  CONSTRAINT `truckemployeeassignment_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `Employee` (`employee_id`),
+  CONSTRAINT `truckemployeeassignment_ibfk_2` FOREIGN KEY (`truck_delivery_id`) REFERENCES `TruckDelivery` (`delivery_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `TruckEmployeeAssignment`
+--
+
+LOCK TABLES `TruckEmployeeAssignment` WRITE;
+/*!40000 ALTER TABLE `TruckEmployeeAssignment` DISABLE KEYS */;
+/*!40000 ALTER TABLE `TruckEmployeeAssignment` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `TruckRoute`
+--
+
+DROP TABLE IF EXISTS `TruckRoute`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `TruckRoute` (
+  `route_id` varchar(5) NOT NULL,
+  `area_name` varchar(20) NOT NULL,
+  `max_delivery_time` double NOT NULL,
+  PRIMARY KEY (`route_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `TruckRoute`
+--
+
+LOCK TABLES `TruckRoute` WRITE;
+/*!40000 ALTER TABLE `TruckRoute` DISABLE KEYS */;
+/*!40000 ALTER TABLE `TruckRoute` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `TruckStopsAt`
+--
+
+DROP TABLE IF EXISTS `TruckStopsAt`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `TruckStopsAt` (
+  `route_id` varchar(5) NOT NULL,
+  `city_id` int NOT NULL,
+  `stop_sequence` int NOT NULL,
+  PRIMARY KEY (`route_id`,`city_id`),
+  KEY `idx_truckstops_city` (`city_id`),
+  CONSTRAINT `truckstopsat_ibfk_1` FOREIGN KEY (`route_id`) REFERENCES `TruckRoute` (`route_id`) ON DELETE CASCADE,
+  CONSTRAINT `truckstopsat_ibfk_2` FOREIGN KEY (`city_id`) REFERENCES `City` (`city_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `TruckStopsAt`
+--
+
+LOCK TABLES `TruckStopsAt` WRITE;
+/*!40000 ALTER TABLE `TruckStopsAt` DISABLE KEYS */;
+/*!40000 ALTER TABLE `TruckStopsAt` ENABLE KEYS */;
+UNLOCK TABLES;
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -460,4 +637,12 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
 -- Dump completed on 2025-09-20 19:11:11
+=======
+-- Dump completed on 2025-09-22 13:48:49
+>>>>>>> Stashed changes
+=======
+-- Dump completed on 2025-09-22 13:48:49
+>>>>>>> Stashed changes
