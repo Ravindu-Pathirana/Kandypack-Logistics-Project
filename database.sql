@@ -1,7 +1,11 @@
 -- MySQL dump 10.13  Distrib 9.3.0, for macos15 (arm64)
 --
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 -- Host: localhost    Database: KandypackLogistics
+=======
+-- Host: localhost    Database: kandypacklogistics
+>>>>>>> Stashed changes
 =======
 -- Host: localhost    Database: kandypacklogistics
 >>>>>>> Stashed changes
@@ -111,15 +115,21 @@ DROP TABLE IF EXISTS `CustomerContactNumber`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `CustomerContactNumber` (
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   `contact_number` varchar(10) NOT NULL,
   `customer_id` int NOT NULL,
   `is_primary` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`contact_number`),
 =======
+=======
+>>>>>>> Stashed changes
   `conatct_number` varchar(10) NOT NULL,
   `customer_id` int NOT NULL,
   `is_primary` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`conatct_number`),
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   KEY `customer_id` (`customer_id`),
   CONSTRAINT `customercontactnumber_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `Customer` (`customer_id`) ON DELETE CASCADE
@@ -462,7 +472,10 @@ LOCK TABLES `TrainRoutePattern` WRITE;
 /*!40000 ALTER TABLE `TrainRoutePattern` ENABLE KEYS */;
 UNLOCK TABLES;
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 
 --
 -- Table structure for table `Truck`
@@ -610,6 +623,9 @@ LOCK TABLES `TruckStopsAt` WRITE;
 /*!40000 ALTER TABLE `TruckStopsAt` DISABLE KEYS */;
 /*!40000 ALTER TABLE `TruckStopsAt` ENABLE KEYS */;
 UNLOCK TABLES;
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -622,7 +638,11 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 -- Dump completed on 2025-09-20 19:11:11
+=======
+-- Dump completed on 2025-09-22 13:48:49
+>>>>>>> Stashed changes
 =======
 -- Dump completed on 2025-09-22 13:48:49
 >>>>>>> Stashed changes
