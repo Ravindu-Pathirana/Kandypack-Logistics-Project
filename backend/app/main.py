@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import orders, trains, reports,products, employees
+from app.routers import orders, trains, reports,products, employees, auth
 
 app = FastAPI (
     title="Kandypack Logistics Backend",
@@ -9,11 +9,12 @@ app = FastAPI (
 
 
 #register routers
-app.include_router(orders.router)
-app.include_router(trains.router)
-app.include_router(reports.router)
-app.include_router(products.router)
-app.include_router(employees.router)
+app.include_router(auth.router)
+# app.include_router(orders.router)
+# app.include_router(trains.router)
+# app.include_router(reports.router)
+# app.include_router(products.router)
+# app.include_router(employees.router)
 
 
 
