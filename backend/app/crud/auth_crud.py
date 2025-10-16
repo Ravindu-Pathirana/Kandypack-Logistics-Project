@@ -1,33 +1,24 @@
-import mysql.connector
-from dotenv import load_dotenv
-import os 
+from sqlalchemy.orm import Session
+from datetime import datetime
+from app.models.auth_models import Employee
+from app.core.database import Base
 
-load_dotenv()  # make sure this is called
+def get_user_by_username(db: Session, username: str):
+    return db.query(Employee).filter(Employee.employee_name == username).first()
 
-def get_db():
-    db = mysql.connector.connect (
-        host=os.getenv("DB_HOST", "localhost"),
-        user=os.getenv("DB_USER", "root"),
-        password = os.getenv("DB_PASS", ""),
-        database = os.getenv("DB_NAME", "kandypacklogistics"))
-    return db 
-
-
-def get_user_by_username(username: str):
-    db = get_db() 
-    cursor = db.cursor(dictionary=True)
-    cursor.execute(
-        "SELECT * FROM auth_users WHERE username=%s", (username,)
+def create_user(db: Session, username: str, email: str, hashed_password: str):
+    db_user = Employee(
+        employee_name=username,
+        employee_nic="TEMP",  # This should be provided in production
+        official_contact_number="0000000000",  # This should be provided in production
+        registrated_date=datetime.now(),
+        password_hash=hashed_password,
+        email=email
     )
-    user = cursor.fetchone() 
-    cursor.close() 
-    db.close() 
-    return user   
-
-
-def create_user(username, email, hashed):
-    db = get_db() 
-    cursor = db.cursor(dictionary=True) 
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
     cursor.execute (
         "INSERT INTO auth_users (username, email, password_hash) VALUES (%s, %s, %s)", (username, email, hashed)
     )

@@ -1,111 +1,65 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
+import { driverService, type Driver, type CreateDriverDto } from '@/services/driverService';
 import { 
-  Users, 
-  Clock, 
-  Truck,
-  Plus,
-  Calendar,
+    Users, 
+    Clock, 
+    Truck,
+    Plus,
+    Calendar,
   Phone,
   MapPin,
   AlertTriangle
 } from "lucide-react";
 
+// removed: top-level getHoursStatus (redefined below with UI-specific shape)
+
 const Drivers = () => {
-  const drivers = [
-    {
-      id: "D001",
-      name: "Kamal Perera",
-      role: "Driver",
-      phone: "+94 77 123 4567",
-      experience: "8 years",
-      currentRoute: "R-01",
-      currentLocation: "Colombo",
-      status: "On Duty",
-      weeklyHours: 35,
-      maxWeeklyHours: 40,
-      lastTrip: "2024-08-07 14:30",
-      rating: 4.8,
-      completedDeliveries: 1247
-    },
-    {
-      id: "D002",
-      name: "Sunil Fernando",
-      role: "Driver",
-      phone: "+94 77 234 5678",
-      experience: "12 years",
-      currentRoute: "R-05",
-      currentLocation: "Matara",
-      status: "Off Duty",
-      weeklyHours: 38,
-      maxWeeklyHours: 40,
-      lastTrip: "2024-08-07 16:45",
-      rating: 4.9,
-      completedDeliveries: 2156
-    },
-    {
-      id: "D003",
-      name: "Ravi Silva",
-      role: "Driver", 
-      phone: "+94 77 345 6789",
-      experience: "5 years",
-      currentRoute: "R-07",
-      currentLocation: "Jaffna",
-      status: "On Duty",
-      weeklyHours: 28,
-      maxWeeklyHours: 40,
-      lastTrip: "2024-08-07 12:20",
-      rating: 4.6,
-      completedDeliveries: 892
-    },
-    {
-      id: "A001",
-      name: "Nimal Jayasinghe",
-      role: "Assistant",
-      phone: "+94 77 456 7890",
-      experience: "3 years",
-      currentRoute: "R-01",
-      currentLocation: "Colombo",
-      status: "On Duty",
-      weeklyHours: 45,
-      maxWeeklyHours: 60,
-      lastTrip: "2024-08-07 14:30",
-      rating: 4.5,
-      completedDeliveries: 567
-    },
-    {
-      id: "A002",
-      name: "Chaminda Wijeratne",
-      role: "Assistant",
-      phone: "+94 77 567 8901",
-      experience: "4 years",
-      currentRoute: "R-03",
-      currentLocation: "Galle",
-      status: "On Duty",
-      weeklyHours: 52,
-      maxWeeklyHours: 60,
-      lastTrip: "2024-08-07 15:10",
-      rating: 4.7,
-      completedDeliveries: 734
-    },
-    {
-      id: "D004",
-      name: "Priyantha Bandara",
-      role: "Driver",
-      phone: "+94 77 678 9012",
-      experience: "6 years",
-      currentRoute: "R-02",
-      currentLocation: "Negombo",
-      status: "On Leave",
-      weeklyHours: 0,
-      maxWeeklyHours: 40,
-      lastTrip: "2024-08-05 17:30",
-      rating: 4.4,
-      completedDeliveries: 1089
+  // state
+  const [rawDrivers, setRawDrivers] = useState<Driver[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  // fetch
+  const fetchDrivers = async () => {
+    try {
+      const data = await driverService.getAllDrivers();
+      setRawDrivers(data || []);
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch drivers');
+      toast({ title: 'Error', description: 'Failed to fetch drivers', variant: 'destructive' });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => { fetchDrivers(); }, []);
+
+  // Map backend Driver -> UI driver shape
+  const mapApiDriver = (d: Driver) => ({
+    id: d.employee_id ? String(d.employee_id) : undefined,
+    name: d.employee_name || '',
+    role: (d as any).role || 'Driver',
+    phone: d.official_contact_number || '',
+    experience: (d as any).experience || 'N/A',
+    currentRoute: (d as any).current_route || '',
+    currentLocation: (d as any).current_location || '',
+    status: d.status || 'Off Duty',
+    weeklyHours: (d.total_hours_week ?? (d as any).weekly_hours) || 0,
+    maxWeeklyHours: ((d as any).max_weekly_hours) || 40,
+    lastTrip: d.registrated_date ? String(d.registrated_date) : '',
+    rating: (d as any).rating ?? 0,
+    completedDeliveries: (d as any).completed_deliveries ?? 0
+  });
+
+  const drivers = rawDrivers.map(mapApiDriver);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -117,17 +71,17 @@ const Drivers = () => {
     }
   };
 
-  const getHoursStatus = (hours: number, maxHours: number, role: string) => {
-    const percentage = (hours / maxHours) * 100;
+  const getHoursStatus = (hours: number, maxHours: number) => {
+    const percentage = (maxHours === 0) ? 0 : (hours / maxHours) * 100;
     if (percentage >= 90) return { color: 'text-red-600', status: 'Critical' };
     if (percentage >= 70) return { color: 'text-orange-600', status: 'High' };
     return { color: 'text-green-600', status: 'Normal' };
   };
 
-  const onDutyDrivers = drivers.filter(d => d.status === 'On Duty' && d.role === 'Driver').length;
-  const onDutyAssistants = drivers.filter(d => d.status === 'On Duty' && d.role === 'Assistant').length;
-  const totalDrivers = drivers.filter(d => d.role === 'Driver').length;
-  const totalAssistants = drivers.filter(d => d.role === 'Assistant').length;
+  const onDutyDrivers = drivers.filter((d: any) => d.status === 'On Duty' && d.role === 'Driver').length;
+  const onDutyAssistants = drivers.filter((d: any) => d.status === 'On Duty' && d.role === 'Assistant').length;
+  const totalDrivers = drivers.filter((d: any) => d.role === 'Driver').length;
+  const totalAssistants = drivers.filter((d: any) => d.role === 'Assistant').length;
 
   return (
     <div className="space-y-6">
@@ -174,7 +128,7 @@ const Drivers = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {Math.round(drivers.reduce((sum, d) => sum + d.weeklyHours, 0) / drivers.length)}
+              {drivers.length ? Math.round(drivers.reduce((sum: number, d: any) => sum + (d.weeklyHours || 0), 0) / drivers.length) : 0}
             </div>
             <p className="text-xs text-muted-foreground">hours per person</p>
           </CardContent>
@@ -186,8 +140,8 @@ const Drivers = () => {
             <AlertTriangle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {drivers.filter(d => d.weeklyHours / d.maxWeeklyHours >= 0.9).length}
+              <div className="text-2xl font-bold text-red-600">
+              {drivers.filter((d: any) => (d.maxWeeklyHours || 0) > 0 && d.weeklyHours / d.maxWeeklyHours >= 0.9).length}
             </div>
             <p className="text-xs text-muted-foreground">Near limit</p>
           </CardContent>
@@ -197,7 +151,7 @@ const Drivers = () => {
       {/* Staff Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {drivers.map((person) => {
-          const hoursStatus = getHoursStatus(person.weeklyHours, person.maxWeeklyHours, person.role);
+          const hoursStatus = getHoursStatus(person.weeklyHours, person.maxWeeklyHours);
           
           return (
             <Card key={person.id} className="hover:shadow-lg transition-shadow">
