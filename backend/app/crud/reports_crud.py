@@ -84,35 +84,49 @@ WHERE YEAR(order_date) = YEAR(CURDATE())
 #     return report
 
 
-def get_most_ordered_items():
+def get_most_ordered_items(year: int, quarter: int):
     """
-    Get the most ordered items.
+    Get the most ordered items for a given year and quarter.
+
+    Args:
+        year (int): The year to filter orders.
+        quarter (int): The quarter (1-4) to filter orders.
+
     Returns:
-    - List of dictionaries with item names and order counts.
+        List[Dict]: List of dictionaries with item names and order counts, ordered by order count descending.
     """
     conn = get_db()
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT product_id, count(*) as count
-FROM orderitem oi
-JOIN `order`
-using(order_id)
-GROUP BY (product_id)
-    """)
+        SELECT oi.product_id, COUNT(*) AS order_count
+        FROM orderitem oi
+        JOIN `order` o USING(order_id)
+        WHERE YEAR(o.order_date) = %s
+          AND QUARTER(o.order_date) = %s
+        GROUP BY oi.product_id
+        ORDER BY order_count DESC
+    """, (year, quarter))
 
     results = cur.fetchall()
     cur.close()
 
     most_ordered = []
     for row in results:
-        product_name, order_count = row
+        product_id, order_count = row
         most_ordered.append({
-            "product_name": product_name,
+            "product_id": product_id,
             "order_count": order_count
         })
 
     return most_ordered
+
+
+
+
+
+
+
 
 def get_quarterly_sales_report():
     """

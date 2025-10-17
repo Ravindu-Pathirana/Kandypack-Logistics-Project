@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 # from app.models.report_models import KPI 
 from app.crud import reports_crud
@@ -32,8 +32,14 @@ def quarterly_sales_report():
     return reports_crud.get_quarterly_sales_report()
 
 @router.get("/reports/most-ordered-items")
-def sample_report():
-    return reports_crud.get_most_ordered_items()
+def sample_report(
+    year: int = Query(..., description="Year to filter orders, e.g., 2025"),
+    quarter: int = Query(..., ge=1, le=4, description="Quarter (1-4) to filter orders")):
+    """
+    Get most ordered items for a given year and quarter.
+    """
+    return reports_crud.get_most_ordered_items(year, quarter)
+
 
 # @router.get("/reports/city-wise-sales")
 # def city_wise_sales_report():
