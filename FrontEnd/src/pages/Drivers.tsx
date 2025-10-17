@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { driverService, type Driver, type CreateDriverDto } from '@/services/driverService';
+import { useNavigate } from "react-router-dom";
 import { 
     Users, 
     Clock, 
@@ -20,6 +21,7 @@ import {
 // removed: top-level getHoursStatus (redefined below with UI-specific shape)
 
 const Drivers = () => {
+  const navigate = useNavigate();
   // state
   const [rawDrivers, setRawDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,10 +93,14 @@ const Drivers = () => {
           <h1 className="text-3xl font-bold text-foreground">Drivers & Staff</h1>
           <p className="text-muted-foreground">Manage drivers, assistants, and workforce scheduling</p>
         </div>
-        <Button className="flex items-center gap-2">
+        <Button 
+          className="flex items-center gap-2"
+          onClick={() => navigate("/drivers/add")}
+        >
           <Plus className="h-4 w-4" />
           Add Staff Member
         </Button>
+
       </div>
 
       {/* Summary Cards */}
