@@ -12,6 +12,11 @@ import Drivers from "./pages/Drivers";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 
+// ✅ Add these three imports
+import AddRoute from "./pages/AddRoute";
+import RouteMap from "./pages/RouteMap";
+import ManageRoute from "./pages/ManageRoute";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -26,10 +31,15 @@ const App = () => (
             <Route path="orders" element={<Orders />} />
             <Route path="trains" element={<TrainSchedule />} />
             <Route path="routes" element={<RoutesPage />} />
+            {/* ✅ New route pages nested under main layout */}
+            <Route path="routes/add" element={<AddRoute />} />
+            <Route path="routes/:id/map" element={<RouteMap />} />
+            <Route path="routes/:id/manage" element={<ManageRoute />} />
             <Route path="drivers" element={<Drivers />} />
             <Route path="reports" element={<Reports />} />
           </Route>
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+
+          {/* Catch-all for invalid URLs */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

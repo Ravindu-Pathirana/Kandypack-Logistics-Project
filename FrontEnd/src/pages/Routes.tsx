@@ -1,6 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
+
 import { 
   Route, 
   MapPin, 
@@ -12,6 +14,9 @@ import {
 } from "lucide-react";
 
 const Routes = () => {
+  const navigate = useNavigate();
+
+  
   const routes = [
     {
       id: "R-01",
@@ -133,10 +138,14 @@ const Routes = () => {
           <h1 className="text-3xl font-bold text-foreground">Delivery Routes</h1>
           <p className="text-muted-foreground">Manage delivery routes and last-mile distribution</p>
         </div>
-        <Button className="flex items-center gap-2">
+        <Button 
+          className="flex items-center gap-2"
+          onClick={() => navigate("/routes/add")}
+>
           <Plus className="h-4 w-4" />
           Add New Route
         </Button>
+
       </div>
 
       {/* Summary Cards */}
@@ -243,14 +252,25 @@ const Routes = () => {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1">
-                  View Map
-                </Button>
-                <Button size="sm" className="flex-1">
-                  Manage
-                </Button>
-              </div>
+              {/* Actions */}
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex-1"
+                onClick={() => navigate(`/routes/${route.id}/map`)}
+              >
+                View Map
+              </Button>
+              <Button 
+                size="sm" 
+                className="flex-1"
+                onClick={() => navigate(`/routes/${route.id}/manage`)}
+              >
+                Manage
+              </Button>
+            </div>
+
             </CardContent>
           </Card>
         ))}
