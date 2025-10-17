@@ -1,4 +1,7 @@
+// @ts-nocheck
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useEffect, useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -13,6 +16,57 @@ import {
   FileText
 } from "lucide-react";
 
+
+const previewReport = (reportType: string) => {
+  const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+  // Opens the report PDF in a new browser tab
+  window.open(`${API_BASE}/reports/${reportType}/pdf`, "_blank");
+};
+
+const getReportType = (reportName: string) => {
+  switch(reportName) {
+    case " Sales Report": return "quarterly-sales";
+    case "Most Ordered Items": return "most-ordered-items";
+    case "City-wise Sales": return "city-wise-sales";
+    case "Route-wise Sales": return "route-wise-sales";
+    default: return "";
+  }
+};
+
+
+
+
+
+
+
+const downloadReport = async (reportType: string) => {
+  const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+  try {
+    const res = await fetch(`${API_BASE}/reports/${reportType}/pdf`, {
+      method: "GET",
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+
+    // Set filename dynamically
+    const filename = reportType === "quarterly-sales" ? "Quarterly_Sales_Report.pdf" : "Report.pdf";
+    a.download = filename;
+
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Failed to download report", err);
+  }
+};
+
+
+
 const Reports = () => {
   const reportCategories = [
     {
@@ -20,7 +74,7 @@ const Reports = () => {
       description: "Revenue and sales volume analysis",
       icon: TrendingUp,
       reports: [
-        { name: "Quarterly Sales Report", description: "Value and volume breakdown by quarter", lastGenerated: "2024-08-01" },
+        { name: " Sales Report", description: "Value and volume breakdown by quarter", lastGenerated: "2024-08-01" },
         { name: "Most Ordered Items", description: "Top selling products in given quarter", lastGenerated: "2024-08-01" },
         { name: "City-wise Sales", description: "Sales breakdown by destination city", lastGenerated: "2024-08-05" },
         { name: "Route-wise Sales", description: "Performance analysis by delivery route", lastGenerated: "2024-08-03" }
@@ -50,12 +104,50 @@ const Reports = () => {
     }
   ];
 
-  const quickStats = [
+  type QuickStat = {
+    label: string;
+    value: string;
+    change?: string;
+    trend?: "up" | "down";
+  };
+
+  const FALLBACK_STATS: QuickStat[] = [
     { label: "This Quarter Revenue", value: "Rs. 24.8M", change: "+12.5%", trend: "up" },
     { label: "Orders Delivered", value: "1,247", change: "+8.3%", trend: "up" },
     { label: "Average Delivery Time", value: "4.2 hrs", change: "-0.8 hrs", trend: "down" },
     { label: "Customer Satisfaction", value: "94.7%", change: "+2.1%", trend: "up" }
   ];
+
+  const [quickStats, setQuickStats] = useState<QuickStat[]>(FALLBACK_STATS);
+
+  useEffect(() => {
+    let mounted = true;
+    const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+
+    async function loadKpis() {
+      try {
+        const res = await fetch(`${API_BASE}/dasshboard/kpi`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!Array.isArray(data)) return;
+
+        const mapped = data.map((item: any) => ({
+          label: item.name ?? item.label ?? "",
+          value: Array.isArray(item.value) ? String(item.value[0]) : String(item.value ?? "0"),
+          change: item.change,
+          trend: item.trend
+        } as QuickStat));
+
+        if (mounted && mapped.length) setQuickStats(mapped);
+      } catch (err) {
+        // Keep fallback on error
+        console.error("Failed to load KPIs", err);
+      }
+    }
+
+    loadKpis();
+    return () => { mounted = false; };
+  }, []);
 
   const recentReports = [
     { name: "Daily Operations Summary", date: "2024-08-07", size: "2.4 MB", format: "PDF" },
@@ -93,11 +185,11 @@ const Reports = () => {
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className={`text-xs ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
-                {stat.change}
-              </p>
-            </CardContent>
+                <CardTitle className="text-2xl font-bold">{stat.value}</CardTitle>
+                <p className={`text-xs ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+                  {stat.change}
+                </p>
+              </CardContent>
           </Card>
         ))}
       </div>
@@ -133,13 +225,42 @@ const Reports = () => {
                           Last: {report.lastGenerated}
                         </span>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            View
-                          </Button>
-                          <Button size="sm" className="flex items-center gap-1">
-                            <Download className="h-3 w-3" />
-                            Generate
-                          </Button>
+                          <Button
+  variant="outline"
+  size="sm"
+  onClick={() => {
+    const type = getReportType(report.name);
+    if (type) previewReport(type);
+  }}
+>
+  View
+</Button>
+                          <Button 
+  size="sm" 
+  className="flex items-center gap-1"
+  onClick={() => {
+    // Map report name to API endpoint
+    let type = "";
+    switch(report.name) {
+      case " Sales Report":
+        type = "quarterly-sales";
+        break;
+      case "Most Ordered Items":
+        type = "most-ordered-items";
+        break;
+      case "City-wise Sales":
+        type = "city-wise-sales";
+        break;
+      // Add more mappings as needed
+      default:
+        type = "";
+    }
+    if (type) downloadReport(type);
+  }}
+>
+  <Download className="h-3 w-3" />
+  Generate
+</Button>
                         </div>
                       </div>
                     </div>
