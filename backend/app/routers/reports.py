@@ -17,7 +17,7 @@ from reportlab.platypus import (
     PageTemplate, Frame, Flowable
 )
 from reportlab.lib.units import cm
-from app.crud.reports_crud import get_quarterly_sales_report
+from app.crud.reports_crud import get_quarterly_sales_report, get_most_ordered_items
 from datetime import datetime
 
 router = APIRouter()
@@ -32,13 +32,142 @@ def quarterly_sales_report():
     return reports_crud.get_quarterly_sales_report()
 
 @router.get("/reports/most-ordered-items")
-def sample_report(
-    year: int = Query(..., description="Year to filter orders, e.g., 2025"),
-    quarter: int = Query(..., ge=1, le=4, description="Quarter (1-4) to filter orders")):
-    """
-    Get most ordered items for a given year and quarter.
-    """
-    return reports_crud.get_most_ordered_items(year, quarter)
+def generate_most_ordered_items_pdf(year: int, quarter: int):
+    data = get_most_ordered_items(year, quarter)
+    current_date = datetime.now()
+
+    buffer = BytesIO()
+    width, height = A4
+
+    # -----------------------
+    # Background and border
+    # -----------------------
+    def add_background(canvas, doc):
+        canvas.setFillColor(colors.HexColor("#f7f9fc"))
+        canvas.rect(0, 0, width, height, fill=1, stroke=0)
+        canvas.setStrokeColor(colors.HexColor("#b0b0b0"))
+        canvas.setLineWidth(2)
+        margin = 25
+        canvas.rect(margin, margin, width - 2*margin, height - 2*margin, fill=0, stroke=1)
+
+    # -----------------------
+    # Document setup
+    # -----------------------
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=50,
+        leftMargin=60,
+        topMargin=60,
+        bottomMargin=50
+    )
+
+    styles = getSampleStyleSheet()
+    styles["Title"].alignment = TA_LEFT
+    styles["Normal"].alignment = TA_LEFT
+
+    subheading_style = ParagraphStyle(
+        name="SubHeading",
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=16,
+        textColor=colors.HexColor("#2E4053"),
+        alignment=TA_LEFT,
+        spaceAfter=6
+    )
+
+    elements = []
+
+    # Header
+    elements.append(Paragraph("<b>Kandypack - Most Ordered Items Report</b>", styles["Title"]))
+    elements.append(Spacer(1, 0.01*cm))
+    elements.append(Paragraph(f"Generated on: {current_date.strftime('%Y-%m-%d %H:%M')}", styles["Normal"]))
+    elements.append(Spacer(1, 0.2*cm))
+    elements.append(Paragraph(f"Quarter: Q{quarter}", styles["Normal"]))
+    elements.append(Paragraph(f"Year: {year}", styles["Normal"]))
+    elements.append(Spacer(1, 0.6*cm))
+
+    # Summary Cards
+    total_orders = sum(item["order_count"] for item in data)
+
+    elements.append(Paragraph("Summary", subheading_style))
+    elements.append(Spacer(1, 0.2*cm))
+
+    total_orders_card = Paragraph(f"<b>Total Orders:</b> {total_orders}", styles["Normal"])
+
+    cards_table = Table([[total_orders_card]], colWidths=[16*cm])
+    cards_table.setStyle(TableStyle([
+        ("LEFTPADDING", (0,0), (-1,-1), 6),
+        ("RIGHTPADDING", (0,0), (-1,-1), 6),
+        ("TOPPADDING", (0,0), (-1,-1), 6),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+        ("BACKGROUND", (0,0), (-1,-1), colors.HexColor("#E3F2FD")),
+        ("BOX", (0,0), (-1,-1), 0.5, colors.grey)
+    ]))
+    elements.append(cards_table)
+    elements.append(Spacer(1, 0.5*cm))
+
+    # Table of Most Ordered Items
+    elements.append(Paragraph("Most Ordered Items", subheading_style))
+    elements.append(Spacer(1, 0.2*cm))
+
+    table_data = [["Product Name", "Order Count"]]
+    for item in data:
+        table_data.append([item["product_name"], str(item["order_count"])])
+
+    table = Table(table_data, colWidths=[10*cm, 6*cm])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#4CAF50")),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("ALIGN", (0,0), (-1,-1), "LEFT"),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTNAME", (0,1), (-1,-1), "Helvetica"),
+        ("FONTSIZE", (0,0), (-1,-1), 10),
+        ("BOTTOMPADDING", (0,0), (-1,0), 8),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.whitesmoke, colors.HexColor("#f2f2f2")])
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 1*cm))
+
+    # Bar chart of top 10 items
+    top_items = data[:10]
+    if top_items:
+        elements.append(Paragraph("Top 10 Most Ordered Items", subheading_style))
+        elements.append(Spacer(1, 0.2*cm))
+
+        drawing = Drawing(400, 200)
+        chart = VerticalBarChart()
+        chart.x = 0
+        chart.y = 20
+        chart.height = 150
+        chart.width = 300
+        chart.data = [[item["order_count"] for item in top_items]]
+        chart.categoryAxis.categoryNames = [item["product_name"] for item in top_items]
+        chart.barWidth = 15
+        chart.groupSpacing = 10
+        chart.barSpacing = 5
+        chart.valueAxis.valueMin = 0
+        chart.valueAxis.valueMax = max(item["order_count"] for item in top_items) * 1.2
+        chart.valueAxis.valueStep = max(item["order_count"] for item in top_items) // 5 or 1
+        chart.bars[0].fillColor = colors.HexColor("#4CAF50")
+        drawing.add(String(0, 180, "Green = Order Count", fontSize=10))
+        drawing.add(chart)
+        elements.append(drawing)
+
+    # -----------------------
+    # Build PDF with background
+    # -----------------------
+    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
+    doc.addPageTemplates([PageTemplate(id='bordered', frames=[frame], onPage=add_background)])
+    doc.build(elements)
+
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=most_ordered_items_q{quarter}_{year}.pdf"}
+    )
 
 
 # @router.get("/reports/city-wise-sales")
@@ -252,3 +381,284 @@ def generate_quarterly_sales_pdf():
         media_type="application/pdf",
         headers={"Content-Disposition": "attachment; filename=quarterly_sales_report.pdf"}
     )
+
+
+
+
+@router.get("/reports/city-wise-sales")
+def city_wise_sales_report(year: int = Query(..., description="Year, e.g., 2025"),
+                           quarter: int = Query(..., ge=1, le=4, description="Quarter (1-4)")):
+    data = reports_crud.get_city_wise_sales(year, quarter)
+    return data
+
+
+@router.get("/reports/city-wise-sales/pdf")
+def generate_city_wise_sales_pdf(year: int = Query(...), quarter: int = Query(...)):
+    data = reports_crud.get_city_wise_sales(year, quarter)
+    current_date = datetime.now()
+
+    buffer = BytesIO()
+    width, height = A4
+
+    # Background + border
+    def add_background(canvas, doc):
+        canvas.setFillColor(colors.HexColor("#f7f9fc"))
+        canvas.rect(0, 0, width, height, fill=1, stroke=0)
+        canvas.setStrokeColor(colors.HexColor("#b0b0b0"))
+        canvas.setLineWidth(2)
+        margin = 25
+        canvas.rect(margin, margin, width - 2*margin, height - 2*margin, fill=0, stroke=1)
+
+    # Document setup
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            rightMargin=50, leftMargin=60,
+                            topMargin=60, bottomMargin=50)
+    styles = getSampleStyleSheet()
+    styles["Title"].alignment = TA_LEFT
+    styles["Normal"].alignment = TA_LEFT
+
+    subheading_style = ParagraphStyle(
+        name="SubHeading",
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=16,
+        textColor=colors.HexColor("#2E4053"),
+        alignment=TA_LEFT,
+        spaceAfter=6
+    )
+
+    elements = []
+
+    # Header
+    elements.append(Paragraph("<b>Kandypack - City-wise Sales Report</b>", styles["Title"]))
+    elements.append(Spacer(1, 0.2*cm))
+    elements.append(Paragraph(f"Generated on: {current_date.strftime('%Y-%m-%d %H:%M')}", styles["Normal"]))
+    elements.append(Paragraph(f"Quarter: Q{quarter}", styles["Normal"]))
+    elements.append(Paragraph(f"Year: {year}", styles["Normal"]))
+    elements.append(Spacer(1, 0.5*cm))
+
+    # Summary Cards
+    total_sales = sum(float(item["total_sales"]) for item in data)
+    total_orders = sum(float(item["order_count"]) for item in data)
+
+    elements.append(Paragraph("Summary", subheading_style))
+    total_sales_card = Card(f"Total Sales: Rs. {total_sales:,}", bg_color=colors.HexColor("#E8F5E9"))
+    total_orders_card = Card(f"Total Orders: {total_orders}", bg_color=colors.HexColor("#E3F2FD"))
+
+    cards_table = Table([[total_sales_card, CardSpacer(), total_orders_card]], colWidths=[8*cm, 0.5*cm, 8*cm])
+    elements.append(cards_table)
+    elements.append(Spacer(1, 0.5*cm))
+
+    # Table of City-wise sales
+    elements.append(Paragraph("City-wise Sales Details", subheading_style))
+    table_data = [["City", "Total Sales (Rs.)", "Orders"]]
+    for item in data:
+        table_data.append([item["city"], f"{item['total_sales']:,}", str(item["order_count"])])
+
+    table = Table(table_data, colWidths=[8*cm, 4*cm, 4*cm])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#4CAF50")),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("ALIGN", (0,0), (-1,-1), "LEFT"),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTNAME", (0,1), (-1,-1), "Helvetica"),
+        ("FONTSIZE", (0,0), (-1,-1), 10),
+        ("BOTTOMPADDING", (0,0), (-1,0), 8),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.whitesmoke, colors.HexColor("#f2f2f2")])
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 0.5*cm))
+
+    # Bar chart for top cities
+    top_cities = data[:10]  # Top 10 cities by sales
+    if top_cities:
+        elements.append(Paragraph("Top Cities by Sales", subheading_style))
+        drawing = Drawing(400, 200)
+        chart = VerticalBarChart()
+        chart.x = 0
+        chart.y = 20
+        chart.height = 150
+        chart.width = 300
+        chart.data = [[float(item["total_sales"]) for item in top_cities]]
+        chart.categoryAxis.categoryNames = [item["city"] for item in top_cities]
+        chart.barWidth = 15
+        chart.groupSpacing = 10
+        chart.barSpacing = 5
+        chart.valueAxis.valueMin = 0
+        chart.valueAxis.valueMax = max(float(item["total_sales"]) for item in top_cities) * 1.2
+        chart.bars[0].fillColor = colors.HexColor("#4CAF50")
+        drawing.add(chart)
+        elements.append(drawing)
+
+    # Build PDF
+    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
+    doc.addPageTemplates([PageTemplate(id='bordered', frames=[frame], onPage=add_background)])
+    doc.build(elements)
+
+    buffer.seek(0)
+    return StreamingResponse(buffer, media_type="application/pdf",
+                             headers={"Content-Disposition": f"attachment; filename=city_wise_sales_q{quarter}_{year}.pdf"})
+
+
+
+@router.get("/reports/route-wise-report")
+def route_wise_report(year: int = Query(..., description="Year, e.g., 2025"),
+                      quarter: int = Query(..., ge=1, le=4, description="Quarter (1-4)")):
+    data = reports_crud.get_route_wise_report(year, quarter)
+    return data
+
+
+
+@router.get("/reports/route-wise-report/pdf")
+def generate_route_wise_report_pdf(year: int = Query(...), quarter: int = Query(...)):
+    data = reports_crud.get_route_wise_report(year, quarter)
+    current_date = datetime.now()
+
+    # --- Utility function to clean None values ---
+    def safe(value, suffix=""):
+        if value is None:
+            return ""
+        if isinstance(value, float):
+            return f"{value:.2f}{suffix}"
+        return f"{value}{suffix}"
+
+    # --- Setup PDF ---
+    buffer = BytesIO()
+    width, height = A4
+
+    def add_background(canvas, doc):
+        """Draws background and border."""
+        canvas.setFillColor(colors.HexColor("#f7f9fc"))
+        canvas.rect(0, 0, width, height, fill=1, stroke=0)
+        canvas.setStrokeColor(colors.HexColor("#b0b0b0"))
+        canvas.setLineWidth(2)
+        margin = 25
+        canvas.rect(margin, margin, width - 2 * margin, height - 2 * margin, fill=0, stroke=1)
+
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        rightMargin=50, leftMargin=60,
+        topMargin=60, bottomMargin=50
+    )
+    styles = getSampleStyleSheet()
+    styles["Title"].alignment = TA_LEFT
+    styles["Normal"].alignment = TA_LEFT
+
+    subheading_style = ParagraphStyle(
+        name="SubHeading",
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=16,
+        textColor=colors.HexColor("#2E4053"),
+        alignment=TA_LEFT,
+        spaceAfter=6
+    )
+
+    elements = []
+
+    # --- Header ---
+    elements.append(Paragraph("<b>Kandypack - Route-wise Delivery Report</b>", styles["Title"]))
+    elements.append(Spacer(1, 0.2 * 12))
+    elements.append(Paragraph(f"Generated on: {current_date.strftime('%Y-%m-%d %H:%M')}", styles["Normal"]))
+    elements.append(Paragraph(f"Quarter: Q{quarter}", styles["Normal"]))
+    elements.append(Paragraph(f"Year: {year}", styles["Normal"]))
+    elements.append(Spacer(1, 12))
+
+    # --- Summary ---
+    total_deliveries = sum(item.get("total_deliveries", 0) or 0 for item in data)
+    delivered_count = sum(item.get("delivered_count", 0) or 0 for item in data)
+    delayed_count = sum(item.get("delayed_count", 0) or 0 for item in data)
+    avg_on_time = round(
+        sum(item.get("on_time_percentage", 0) or 0 for item in data) / len(data), 2
+    ) if data else 0
+
+    elements.append(Paragraph("Summary", subheading_style))
+
+    summary_table_data = [
+        ["Metric", "Value"],
+        ["Total Deliveries", safe(total_deliveries)],
+        ["Delivered", safe(delivered_count)],
+        ["Delayed", safe(delayed_count)],
+        ["Average On-time %", safe(avg_on_time, "%")],
+    ]
+
+    summary_table = Table(summary_table_data, colWidths=[4 * 72, 2.5 * 72])
+    summary_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1976D2")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.HexColor("#f2f2f2")]),
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 15))
+
+    # --- Main Table ---
+    elements.append(Paragraph("Route-wise Delivery Performance", subheading_style))
+    table_data = [["Route ID", "Area Name", "Total", "Delivered", "Delayed", "Avg Hrs", "On-time %"]]
+
+    for item in data:
+        table_data.append([
+            safe(item.get("route_id")),
+            safe(item.get("area_name")),
+            safe(item.get("total_deliveries")),
+            safe(item.get("delivered_count")),
+            safe(item.get("delayed_count")),
+            safe(item.get("avg_delivery_hours")),
+            safe(item.get("on_time_percentage"), "%"),
+        ])
+
+    main_table = Table(table_data, colWidths=[70, 120, 60, 60, 60, 60, 70])
+    main_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1976D2")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+         [colors.whitesmoke, colors.HexColor("#f2f2f2")]),
+    ]))
+    elements.append(main_table)
+    elements.append(Spacer(1, 15))
+
+    # --- Chart (only if data exists) ---
+    top_routes = sorted(data, key=lambda x: x.get("on_time_percentage", 0) or 0, reverse=True)[:8]
+    if top_routes:
+        elements.append(Paragraph("Top Routes by On-time Delivery %", subheading_style))
+        drawing = Drawing(400, 200)
+        chart = VerticalBarChart()
+        chart.x = 0
+        chart.y = 20
+        chart.height = 150
+        chart.width = 320
+        chart.data = [[float(item.get("on_time_percentage", 0) or 0) for item in top_routes]]
+        chart.categoryAxis.categoryNames = [item.get("route_id", "") for item in top_routes]
+        chart.barWidth = 20
+        chart.valueAxis.valueMin = 0
+        chart.valueAxis.valueMax = 100
+        chart.valueAxis.labels.fontSize = 8
+        chart.categoryAxis.labels.fontSize = 8
+        chart.bars[0].fillColor = colors.HexColor("#1976D2")
+        drawing.add(chart)
+        elements.append(drawing)
+
+    # --- Build PDF ---
+    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id="normal")
+    doc.addPageTemplates([PageTemplate(id="bordered", frames=[frame], onPage=add_background)])
+    doc.build(elements)
+
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=route_wise_report_q{quarter}_{year}.pdf"}
+    )
+
+
+
+
+
