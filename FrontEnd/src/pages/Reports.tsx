@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { 
   BarChart3, 
   Download, 
@@ -10,59 +11,214 @@ import {
   TrendingUp,
   Package,
   Users,
-  FileText
+  FileText,
+  Loader2
 } from "lucide-react";
 
-const previewReport = (reportType: string) => {
-  const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
-  window.open(`${API_BASE}/reports/${reportType}/pdf`, "_blank");
-};
-
-const getReportType = (reportName: string) => {
-  switch(reportName) {
-    case " Sales Report": return "quarterly-sales";
-    case "Most Ordered Items": return "most-ordered-items";
-    case "City-wise Sales": return "city-wise-sales";
-    case "Route-wise Sales": return "route-wise-sales";
-    default: return "";
-  }
-};
-
-const downloadReport = async (reportType: string) => {
-  const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
-  try {
-    const res = await fetch(`${API_BASE}/reports/${reportType}/pdf`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-
-    const filename = reportType.includes("quarterly-sales")
-      ? "Quarterly_Sales_Report.pdf"
-      : "Report.pdf";
-
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-  } catch (err) {
-    console.error("Failed to download report", err);
-  }
-};
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 const Reports = () => {
+  const [quickStats, setQuickStats] = useState([
+    { label: "This Quarter Revenue", value: "Rs. 24.8M", change: "+12.5%", trend: "up" },
+    { label: "Orders Delivered", value: "1,247", change: "+8.3%", trend: "up" },
+    { label: "Average Delivery Time", value: "4.2 hrs", change: "-0.8 hrs", trend: "down" },
+    { label: "Customer Satisfaction", value: "94.7%", change: "+2.1%", trend: "up" }
+  ]);
+
+  const [loading, setLoading] = useState({});
+  
+  // Filters for different reports
+  const [mostOrderedFilters, setMostOrderedFilters] = useState({ year: "", quarter: "" });
+  const [cityWiseFilters, setCityWiseFilters] = useState({ year: "", quarter: "" });
+  const [routeWiseFilters, setRouteWiseFilters] = useState({ year: "", quarter: "" });
+  const [driverHoursFilters, setDriverHoursFilters] = useState({ year: "", quarter: "" });
+  const [truckUsageFilters, setTruckUsageFilters] = useState({ year: "", month: "" });
+  const [customerOrderFilters, setCustomerOrderFilters] = useState({ customerId: "" });
+
+  useEffect(() => {
+    loadKpis();
+  }, []);
+
+  const loadKpis = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/dasshboard/kpi`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!Array.isArray(data)) return;
+
+      const mapped = data.map((item) => ({
+        label: item.name ?? item.label ?? "",
+        value: Array.isArray(item.value) ? String(item.value[0]) : String(item.value ?? "0"),
+        change: item.change,
+        trend: item.trend
+      }));
+
+      if (mapped.length) setQuickStats(mapped);
+    } catch (err) {
+      console.error("Failed to load KPIs", err);
+    }
+  };
+
+  const downloadPDF = async (endpoint, filename, loadingKey) => {
+    setLoading(prev => ({ ...prev, [loadingKey]: true }));
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(`Failed to download ${filename}`, err);
+      alert(`Failed to download report: ${err.message}`);
+    } finally {
+      setLoading(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  const previewPDF = (endpoint) => {
+    window.open(`${API_BASE}${endpoint}`, "_blank");
+  };
+
+  const handleQuarterlySales = () => {
+    downloadPDF("/reports/quarterly-sales/pdf", "Quarterly_Sales_Report.pdf", "quarterly-sales");
+  };
+
+  const handleMostOrderedItems = () => {
+    const { year, quarter } = mostOrderedFilters;
+    if (!year || !quarter) {
+      alert("Please select both year and quarter");
+      return;
+    }
+    const quarterNum = quarter.replace('Q', '');
+    downloadPDF(
+      `/reports/most-ordered-items?year=${year}&quarter=${quarterNum}`,
+      `Most_Ordered_Items_Q${quarterNum}_${year}.pdf`,
+      "most-ordered"
+    );
+  };
+
+  const handleCityWiseSales = () => {
+    const { year, quarter } = cityWiseFilters;
+    if (!year || !quarter) {
+      alert("Please select both year and quarter");
+      return;
+    }
+    const quarterNum = quarter.replace('Q', '');
+    downloadPDF(
+      `/reports/city-wise-sales/pdf?year=${year}&quarter=${quarterNum}`,
+      `City_Wise_Sales_Q${quarterNum}_${year}.pdf`,
+      "city-wise"
+    );
+  };
+
+  const handleRouteWise = () => {
+    const { year, quarter } = routeWiseFilters;
+    if (!year || !quarter) {
+      alert("Please select both year and quarter");
+      return;
+    }
+    const quarterNum = quarter.replace('Q', '');
+    downloadPDF(
+      `/reports/route-wise-report/pdf?year=${year}&quarter=${quarterNum}`,
+      `Route_Wise_Report_Q${quarterNum}_${year}.pdf`,
+      "route-wise"
+    );
+  };
+
+  const handleDriverHours = () => {
+    const { year, quarter } = driverHoursFilters;
+    if (!year || !quarter) {
+      alert("Please select both year and quarter");
+      return;
+    }
+    const quarterNum = quarter.replace('Q', '');
+    downloadPDF(
+      `/reports/driver-hours/pdf?year=${year}&quarter=${quarterNum}`,
+      `Driver_Hours_Q${quarterNum}_${year}.pdf`,
+      "driver-hours"
+    );
+  };
+
+  const handleTruckUsage = () => {
+    const { year, month } = truckUsageFilters;
+    if (!year || !month) {
+      alert("Please select both year and month");
+      return;
+    }
+    downloadPDF(
+      `/reports/truck-usage/pdf?year=${year}&month=${month}`,
+      `Truck_Usage_${year}_${month}.pdf`,
+      "truck-usage"
+    );
+  };
+
+  const handleCustomerOrderHistory = () => {
+    const { customerId } = customerOrderFilters;
+    if (!customerId) {
+      alert("Please enter customer ID");
+      return;
+    }
+    downloadPDF(
+      `/reports/customer-order-history/pdf?customer_id=${customerId}`,
+      `Customer_${customerId}_Order_History.pdf`,
+      "customer-order"
+    );
+  };
+
   const reportCategories = [
     {
       title: "Sales Reports",
       description: "Revenue and sales volume analysis",
       icon: TrendingUp,
       reports: [
-        { name: " Sales Report", description: "Value and volume breakdown by quarter", lastGenerated: "2024-08-01" },
-        { name: "Most Ordered Items", description: "Top selling products in given quarter", lastGenerated: "2024-08-01" },
-        { name: "City-wise Sales", description: "Sales breakdown by destination city", lastGenerated: "2024-08-05" },
-        { name: "Route-wise Sales", description: "Performance analysis by delivery route", lastGenerated: "2024-08-03" }
+        { 
+          id: "quarterly-sales",
+          name: "Quarterly Sales Report", 
+          description: "Value and volume breakdown by quarter", 
+          lastGenerated: "2024-08-01",
+          hasFilters: false,
+          onDownload: handleQuarterlySales,
+          onPreview: () => previewPDF("/reports/quarterly-sales/pdf")
+        },
+        { 
+          id: "most-ordered",
+          name: "Most Ordered Items", 
+          description: "Top selling products in given quarter", 
+          lastGenerated: "2024-08-01",
+          hasFilters: true,
+          filters: mostOrderedFilters,
+          setFilters: setMostOrderedFilters,
+          filterType: "year-quarter",
+          onDownload: handleMostOrderedItems
+        },
+        { 
+          id: "city-wise",
+          name: "City-wise Sales", 
+          description: "Sales breakdown by destination city", 
+          lastGenerated: "2024-08-05",
+          hasFilters: true,
+          filters: cityWiseFilters,
+          setFilters: setCityWiseFilters,
+          filterType: "year-quarter",
+          onDownload: handleCityWiseSales
+        },
+        { 
+          id: "route-wise",
+          name: "Route-wise Report", 
+          description: "Performance analysis by delivery route", 
+          lastGenerated: "2024-08-03",
+          hasFilters: true,
+          filters: routeWiseFilters,
+          setFilters: setRouteWiseFilters,
+          filterType: "year-quarter",
+          onDownload: handleRouteWise
+        }
       ]
     },
     {
@@ -70,10 +226,28 @@ const Reports = () => {
       description: "Logistics and operational metrics",
       icon: Package,
       reports: [
-        { name: "Customer Order History", description: "Complete delivery history per customer", lastGenerated: "2024-08-06" },
-        { name: "Truck Usage Analysis", description: "Monthly vehicle utilization report", lastGenerated: "2024-08-01" },
-        { name: "Train Capacity Report", description: "Railway transport efficiency analysis", lastGenerated: "2024-08-04" },
-        { name: "Delivery Performance", description: "On-time delivery and route efficiency", lastGenerated: "2024-08-07" }
+        { 
+          id: "customer-order",
+          name: "Customer Order History", 
+          description: "Complete delivery history per customer", 
+          lastGenerated: "2024-08-06",
+          hasFilters: true,
+          filters: customerOrderFilters,
+          setFilters: setCustomerOrderFilters,
+          filterType: "customer-id",
+          onDownload: handleCustomerOrderHistory
+        },
+        { 
+          id: "truck-usage",
+          name: "Truck Usage Analysis", 
+          description: "Monthly vehicle utilization report", 
+          lastGenerated: "2024-08-01",
+          hasFilters: true,
+          filters: truckUsageFilters,
+          setFilters: setTruckUsageFilters,
+          filterType: "year-month",
+          onDownload: handleTruckUsage
+        }
       ]
     },
     {
@@ -81,117 +255,96 @@ const Reports = () => {
       description: "Workforce and staffing analytics",
       icon: Users,
       reports: [
-        { name: "Driver Working Hours", description: "Weekly and monthly hour tracking", lastGenerated: "2024-08-07" },
-        { name: "Assistant Utilization", description: "Assistant workload and efficiency", lastGenerated: "2024-08-07" },
-        { name: "Staff Performance", description: "Employee ratings and delivery metrics", lastGenerated: "2024-08-05" },
-        { name: "Roster Compliance", description: "Work hour regulation compliance", lastGenerated: "2024-08-06" }
+        { 
+          id: "driver-hours",
+          name: "Driver Working Hours", 
+          description: "Weekly and monthly hour tracking", 
+          lastGenerated: "2024-08-07",
+          hasFilters: true,
+          filters: driverHoursFilters,
+          setFilters: setDriverHoursFilters,
+          filterType: "year-quarter",
+          onDownload: handleDriverHours
+        }
       ]
     }
   ];
 
-  type QuickStat = {
-    label: string;
-    value: string;
-    change?: string;
-    trend?: "up" | "down";
+  const renderFilters = (report) => {
+    if (!report.hasFilters) return null;
+
+    const { filters, setFilters, filterType } = report;
+    const canGenerate = filterType === "customer-id" 
+      ? filters.customerId 
+      : filterType === "year-month"
+      ? filters.year && filters.month
+      : filters.year && filters.quarter;
+
+    return (
+      <div className="mb-3">
+        {filterType === "year-quarter" && (
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder="Year (e.g., 2025)"
+              value={filters.year}
+              onChange={(e) => setFilters({ ...filters, year: e.target.value })}
+              className="w-32"
+            />
+            <select
+              value={filters.quarter}
+              onChange={(e) => setFilters({ ...filters, quarter: e.target.value })}
+              className="border rounded px-3 py-2"
+            >
+              <option value="">Select Quarter</option>
+              <option value="Q1">Q1</option>
+              <option value="Q2">Q2</option>
+              <option value="Q3">Q3</option>
+              <option value="Q4">Q4</option>
+            </select>
+          </div>
+        )}
+        {filterType === "year-month" && (
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder="Year (e.g., 2025)"
+              value={filters.year}
+              onChange={(e) => setFilters({ ...filters, year: e.target.value })}
+              className="w-32"
+            />
+            <select
+              value={filters.month}
+              onChange={(e) => setFilters({ ...filters, month: e.target.value })}
+              className="border rounded px-3 py-2"
+            >
+              <option value="">Select Month</option>
+              {Array.from({ length: 12 }, (_, i) => (
+                <option key={i + 1} value={i + 1}>{i + 1}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        {filterType === "customer-id" && (
+          <Input
+            type="text"
+            placeholder="Customer ID"
+            value={filters.customerId}
+            onChange={(e) => setFilters({ ...filters, customerId: e.target.value })}
+            className="w-40"
+          />
+        )}
+      </div>
+    );
   };
 
-  const FALLBACK_STATS: QuickStat[] = [
-    { label: "This Quarter Revenue", value: "Rs. 24.8M", change: "+12.5%", trend: "up" },
-    { label: "Orders Delivered", value: "1,247", change: "+8.3%", trend: "up" },
-    { label: "Average Delivery Time", value: "4.2 hrs", change: "-0.8 hrs", trend: "down" },
-    { label: "Customer Satisfaction", value: "94.7%", change: "+2.1%", trend: "up" }
-  ];
-
-  const [quickStats, setQuickStats] = useState<QuickStat[]>(FALLBACK_STATS);
-
-  // Dropdown state for "Most Ordered Items"
-  const [reportFilters, setReportFilters] = useState<{ year: string; quarter: string }>({
-    year: "",
-    quarter: ""
-  });
-
-const downloadMostOrderedItemsPdf = async () => {
-  const year = parseInt(reportFilters.year, 10);
-  const quarterMap: { [key: string]: number } = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
-  const quarter = quarterMap[reportFilters.quarter];
-
-  if (!year || !quarter) return;
-
-  const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
-
-  try {
-    const res = await fetch(`${API_BASE}/reports/most-ordered-items?year=${year}&quarter=${quarter}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Most_Ordered_Items_Q${quarter}_${year}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-
-    window.URL.revokeObjectURL(url);
-  } catch (err) {
-    console.error("Failed to download Most Ordered Items PDF", err);
-  }
-};
-
-  useEffect(() => {
-    let mounted = true;
-    const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
-
-    async function loadKpis() {
-      try {
-        const res = await fetch(`${API_BASE}/dasshboard/kpi`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!Array.isArray(data)) return;
-
-        const mapped = data.map((item: any) => ({
-          label: item.name ?? item.label ?? "",
-          value: Array.isArray(item.value) ? String(item.value[0]) : String(item.value ?? "0"),
-          change: item.change,
-          trend: item.trend
-        } as QuickStat));
-
-        if (mounted && mapped.length) setQuickStats(mapped);
-      } catch (err) {
-        console.error("Failed to load KPIs", err);
-      }
-    }
-
-    loadKpis();
-    return () => { mounted = false; };
-  }, []);
-
-  const recentReports = [
-    { name: "Daily Operations Summary", date: "2024-08-07", size: "2.4 MB", format: "PDF" },
-    { name: "Weekly Sales Dashboard", date: "2024-08-05", size: "1.8 MB", format: "XLSX" },
-    { name: "Driver Performance Report", date: "2024-08-03", size: "945 KB", format: "PDF" },
-    { name: "Route Efficiency Analysis", date: "2024-08-01", size: "3.2 MB", format: "PDF" }
-  ];
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Reports & Analytics</h1>
           <p className="text-muted-foreground">Business intelligence and operational insights</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Schedule Report
-          </Button>
-          <Button className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Generate Report
-          </Button>
         </div>
       </div>
 
@@ -228,91 +381,46 @@ const downloadMostOrderedItemsPdf = async () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {category.reports.map((report, reportIndex) => {
-                    const isMostOrdered = report.name === "Most Ordered Items";
-                    let canGenerate = true;
-                    if (isMostOrdered) {
-                      const isYearValid = /^\d{4}$/.test(reportFilters.year);
-                      const isQuarterValid = !!reportFilters.quarter;
-                      canGenerate = isYearValid && isQuarterValid;
-                    }
-
+                  {category.reports.map((report) => {
+                    const isLoading = loading[report.id];
+                    
                     return (
-                      <div key={reportIndex} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div key={report.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-medium">{report.name}</h4>
                           <Badge variant="outline" className="text-xs">Available</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground mb-3">{report.description}</p>
 
-                        {/* Year & Quarter dropdowns */}
-                        {isMostOrdered && (
-                          <div className="flex gap-2 mb-3">
-                            {/* Year input */}
-                            <input
-                              type="text"
-                              placeholder="Enter Year"
-                              value={reportFilters.year}
-                              onChange={(e) => setReportFilters(prev => ({ ...prev, year: e.target.value }))}
-                              className="border rounded px-2 py-1 w-24"
-                            />
-
-                            <select
-                              value={reportFilters.quarter}
-                              onChange={(e) => setReportFilters(prev => ({ ...prev, quarter: e.target.value }))}
-                              className="border rounded px-2 py-1"
-                            >
-                              <option value="">Select Quarter</option>
-                              <option value="Q1">Q1</option>
-                              <option value="Q2">Q2</option>
-                              <option value="Q3">Q3</option>
-                              <option value="Q4">Q4</option>
-                            </select>
-                          </div>
-                        )}
+                        {renderFilters(report)}
 
                         <div className="flex justify-between items-center">
                           <span className="text-xs text-muted-foreground">
                             Last: {report.lastGenerated}
                           </span>
                           <div className="flex gap-2">
-                            {!isMostOrdered && (
+                            {report.onPreview && (
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                  const type = getReportType(report.name);
-                                  if (type) previewReport(type);
-                                }}
+                                onClick={report.onPreview}
                               >
                                 View
                               </Button>
                             )}
-
-                            {!isMostOrdered ? (
-                              <Button
-                                size="sm"
-                                className="flex items-center gap-1"
-                                onClick={() => {
-                                  const type = getReportType(report.name);
-                                  if (type) downloadReport(type);
-                                }}
-                              >
+                            <Button
+                              size="sm"
+                              className="flex items-center gap-1"
+                              onClick={report.onDownload}
+                              disabled={isLoading}
+                            >
+                              {isLoading ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
                                 <Download className="h-3 w-3" />
-                                Download
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                className="flex items-center gap-1"
-                                onClick={downloadMostOrderedItemsPdf}
-                                disabled={!canGenerate}
-                              >
-                                <Download className="h-3 w-3" />
-                                Generate
-                              </Button>
-                            )}
-
+                              )}
+                              {isLoading ? "Generating..." : "Download"}
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -323,51 +431,6 @@ const downloadMostOrderedItemsPdf = async () => {
             </Card>
           );
         })}
-      </div>
-
-      {/* Recent Reports */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Recent Reports
-          </CardTitle>
-          <CardDescription>Recently generated reports and downloads</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {recentReports.map((report, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                    <FileText className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{report.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {report.date} • {report.size} • {report.format}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm">
-                    View
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex items-center gap-1">
-                    <Download className="h-3 w-3" />
-                    Download
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Analytics Dashboard */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Performance Metrics */}
-        {/* ... (same as your original code, unchanged) */}
       </div>
     </div>
   );
