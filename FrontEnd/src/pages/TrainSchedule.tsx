@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,80 +13,283 @@ import {
   CheckCircle
 } from "lucide-react";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+
+const formSchema = z.object({
+  train_name: z.string().min(1, { message: "Train name is required" }),
+  start_station: z.string().min(1, { message: "Start station is required" }),
+  destination_station: z.string().min(1, { message: "Destination station is required" }),
+  departure_date_time: z.string().min(1, { message: "Departure time is required" }),
+  arrival_date_time: z.string().min(1, { message: "Arrival time is required" }),
+  capacity_space: z.number().positive({ message: "Capacity must be positive" }),
+  status: z.enum(["On Time", "Delayed"], { message: "Status is required" }),
+});
+
 const TrainSchedule = () => {
-  const trainRoutes = [
-    {
-      id: "TR-001",
-      route: "Kandy → Colombo",
-      departure: "08:30",
-      arrival: "11:15",
-      capacity: 200,
-      utilized: 170,
+  const [trainRoutes, setTrainRoutes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      train_name: "",
+      start_station: "Kandy",
+      destination_station: "",
+      departure_date_time: "",
+      arrival_date_time: "",
+      capacity_space: 0,
       status: "On Time",
-      orders: 12,
-      nextDeparture: "2024-08-08"
     },
-    {
-      id: "TR-002",
-      route: "Kandy → Negombo",
-      departure: "09:45",
-      arrival: "12:30",
-      capacity: 150,
-      utilized: 120,
-      status: "On Time",
-      orders: 8,
-      nextDeparture: "2024-08-08"
-    },
-    {
-      id: "TR-003",
-      route: "Kandy → Galle",
-      departure: "10:15",
-      arrival: "14:45",
-      capacity: 180,
-      utilized: 166,
-      status: "Delayed",
-      orders: 15,
-      nextDeparture: "2024-08-08"
-    },
-    {
-      id: "TR-005",
-      route: "Kandy → Matara",
-      departure: "14:00",
-      arrival: "18:30",
-      capacity: 160,
-      utilized: 107,
-      status: "On Time",
-      orders: 9,
-      nextDeparture: "2024-08-08"
-    },
-    {
-      id: "TR-007",
-      route: "Kandy → Jaffna",
-      departure: "16:45",
-      arrival: "22:15",
-      capacity: 140,
-      utilized: 109,
-      status: "On Time",
-      orders: 11,
-      nextDeparture: "2024-08-08"
-    },
-    {
-      id: "TR-009",
-      route: "Kandy → Trincomalee",
-      departure: "18:30",
-      arrival: "23:00",
-      capacity: 120,
-      utilized: 85,
-      status: "Scheduled",
-      orders: 7,
-      nextDeparture: "2024-08-08"
+  });
+
+  useEffect(() => {
+    const fetchTrains = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/trains/");
+        if (!response.ok) {
+          throw new Error("Failed to fetch train schedules");
+        }
+        const data = await response.json();
+        setTrainRoutes(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTrains();
+  }, []);
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      // Format datetime to ISO 8601 format without timezone
+      const formattedValues = {
+        ...values,
+        departure_date_time: values.departure_date_time + ":00",
+        arrival_date_time: values.arrival_date_time + ":00",
+      };
+      
+      console.log("Sending data:", formattedValues);
+      
+      const response = await fetch("http://localhost:8000/trains/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formattedValues),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.log("Error response:", errorData);
+        throw new Error(errorData.detail || "Failed to add train trip");
+      }
+      
+      const data = await response.json();
+      console.log("Success response:", data);
+      toast.success("Train trip added successfully");
+      setIsOpen(false);
+      form.reset();
+      
+      // Refresh train list
+      const updatedTrains = await fetch("http://localhost:8000/trains/").then(res => res.json());
+      setTrainRoutes(updatedTrains);
+    } catch (err) {
+      console.error("Submission error:", err);
+      toast.error(err.message || "Failed to add train trip");
     }
-  ];
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-lg text-muted-foreground">Loading train schedules...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-lg text-destructive">Error: {error}</div>
+      </div>
+    );
+  }
+
+  if (trainRoutes.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Train Schedule</h1>
+            <p className="text-muted-foreground">Railway transport schedule and capacity management</p>
+          </div>
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Add Train Trip
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Train Trip</DialogTitle>
+                <DialogDescription>Fill in the details to add a new train schedule.</DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="train_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Train Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Express1" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="start_station"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Start Station</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Kandy" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="destination_station"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Destination Station</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Colombo" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="departure_date_time"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Departure Date/Time</FormLabel>
+                        <FormControl>
+                          <Input type="datetime-local" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="arrival_date_time"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Arrival Date/Time</FormLabel>
+                        <FormControl>
+                          <Input type="datetime-local" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="capacity_space"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Capacity Space</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="200" 
+                            {...field} 
+                            value={field.value || ''} 
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <FormControl>
+                          <select
+                            {...field}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <option value="On Time">On Time</option>
+                            <option value="Delayed">Delayed</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button type="submit">Save Train Trip</Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="text-muted-foreground">No trains scheduled yet.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'On Time': return 'default';
-      case 'Delayed': return 'destructive';
+      case 'On Time': 
+      case 'on-time': 
+        return 'default';
+      case 'Delayed': 
+      case 'delayed': 
+        return 'destructive';
       case 'Scheduled': return 'secondary';
       case 'Cancelled': return 'outline';
       default: return 'outline';
@@ -94,8 +298,12 @@ const TrainSchedule = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'On Time': return <CheckCircle className="h-4 w-4" />;
-      case 'Delayed': return <AlertTriangle className="h-4 w-4" />;
+      case 'On Time':
+      case 'on-time':
+        return <CheckCircle className="h-4 w-4" />;
+      case 'Delayed':
+      case 'delayed':
+        return <AlertTriangle className="h-4 w-4" />;
       case 'Scheduled': return <Clock className="h-4 w-4" />;
       default: return <Clock className="h-4 w-4" />;
     }
@@ -103,23 +311,141 @@ const TrainSchedule = () => {
 
   const totalCapacity = trainRoutes.reduce((sum, train) => sum + train.capacity, 0);
   const totalUtilized = trainRoutes.reduce((sum, train) => sum + train.utilized, 0);
-  const overallUtilization = (totalUtilized / totalCapacity) * 100;
+  const overallUtilization = totalCapacity > 0 ? (totalUtilized / totalCapacity) * 100 : 0;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Train Schedule</h1>
           <p className="text-muted-foreground">Railway transport schedule and capacity management</p>
         </div>
-        <Button className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Add Train Trip
-        </Button>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>
+            <Button className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add Train Trip
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Train Trip</DialogTitle>
+              <DialogDescription>Fill in the details to add a new train schedule.</DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="train_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Train Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Express1" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="start_station"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start Station</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Kandy" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="destination_station"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Destination Station</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Colombo" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="departure_date_time"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Departure Date/Time</FormLabel>
+                      <FormControl>
+                        <Input type="datetime-local" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="arrival_date_time"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Arrival Date/Time</FormLabel>
+                      <FormControl>
+                        <Input type="datetime-local" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="capacity_space"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Capacity Space</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="200" 
+                          {...field} 
+                          value={field.value || ''} 
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <option value="On Time">On Time</option>
+                          <option value="Delayed">Delayed</option>
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="submit">Save Train Trip</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -146,12 +472,10 @@ const TrainSchedule = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">On Time</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {trainRoutes.filter(t => t.status === 'On Time').length}
-            </div>
+            <div className="text-2xl font-bold">{trainRoutes.filter(t => t.status === 'on-time' || t.status === 'On Time').length}</div>
             <p className="text-xs text-muted-foreground">Trains on schedule</p>
           </CardContent>
         </Card>
@@ -159,44 +483,34 @@ const TrainSchedule = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Delayed</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {trainRoutes.filter(t => t.status === 'Delayed').length}
-            </div>
+            <div className="text-2xl font-bold">{trainRoutes.filter(t => t.status === 'delayed' || t.status === 'Delayed').length}</div>
             <p className="text-xs text-muted-foreground">Trains delayed</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Train Schedule Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {trainRoutes.map((train) => {
-          const utilizationPercentage = (train.utilized / train.capacity) * 100;
-          
+          const utilizationPercentage = train.capacity > 0 ? (train.utilized / train.capacity) * 100 : 0;
           return (
-            <Card key={train.id} className="hover:shadow-lg transition-shadow">
+            <Card key={train.id}>
               <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Train className="h-5 w-5" />
-                      {train.id}
-                    </CardTitle>
-                    <CardDescription className="flex items-center gap-1 mt-1">
-                      <MapPin className="h-4 w-4" />
-                      {train.route}
-                    </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Train className="h-5 w-5" />
+                    <CardTitle className="text-lg">{train.id}</CardTitle>
                   </div>
                   <Badge variant={getStatusColor(train.status)} className="flex items-center gap-1">
                     {getStatusIcon(train.status)}
                     {train.status}
                   </Badge>
                 </div>
+                <CardDescription>{train.route}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Schedule Information */}
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Departure</p>
@@ -214,7 +528,6 @@ const TrainSchedule = () => {
                   </div>
                 </div>
 
-                {/* Capacity Information */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Capacity Utilization</span>
@@ -234,7 +547,6 @@ const TrainSchedule = () => {
                   </div>
                 </div>
 
-                {/* Order Information */}
                 <div className="flex justify-between items-center pt-2 border-t">
                   <div className="flex items-center gap-2">
                     <Package className="h-4 w-4 text-muted-foreground" />
@@ -245,7 +557,6 @@ const TrainSchedule = () => {
                   </div>
                 </div>
 
-                {/* Actions */}
                 <div className="flex gap-2 pt-2">
                   <Button variant="outline" size="sm" className="flex-1">
                     View Details
@@ -260,7 +571,6 @@ const TrainSchedule = () => {
         })}
       </div>
 
-      {/* Weekly Schedule Overview */}
       <Card>
         <CardHeader>
           <CardTitle>Weekly Schedule Overview</CardTitle>
@@ -281,7 +591,7 @@ const TrainSchedule = () => {
               {[...Array(7)].map((_, i) => (
                 <div key={i} className="space-y-2">
                   <div className="text-xs text-center p-2 bg-muted rounded">
-                    {6 + Math.floor(Math.random() * 3)} trips
+                    {Math.floor(Math.random() * 3) + 6} trips
                   </div>
                 </div>
               ))}
