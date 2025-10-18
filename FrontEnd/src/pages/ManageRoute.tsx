@@ -1,20 +1,20 @@
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const routes = [
-  { id: "R-01", name: "Colombo Central", area: "Colombo District", coverage: "Fort, Pettah, Kollupitiya, Bambalapitiya", activeOrders: 15, trucks: 3, drivers: 6, status: "Active" },
-  { id: "R-02", name: "Negombo Coast", area: "Gampaha District", coverage: "Negombo, Katunayake, Seeduwa, Ja-Ela", activeOrders: 8, trucks: 2, drivers: 4, status: "Active" },
-  { id: "R-03", name: "Galle Southern", area: "Southern Province", coverage: "Galle, Unawatuna, Hikkaduwa, Ambalangoda", activeOrders: 12, trucks: 2, drivers: 4, status: "Active" },
-  { id: "R-04", name: "Kandy Hills", area: "Central Province", coverage: "Kandy City, Peradeniya, Gampola, Nawalapitiya", activeOrders: 6, trucks: 1, drivers: 2, status: "Active" },
-  { id: "R-05", name: "Matara Deep South", area: "Southern Province", coverage: "Matara, Weligama, Mirissa, Tangalle", activeOrders: 9, trucks: 2, drivers: 4, status: "Active" },
-  { id: "R-06", name: "Kurunegala Central", area: "North Western Province", coverage: "Kurunegala, Puttalam, Chilaw, Wariyapola", activeOrders: 4, trucks: 1, drivers: 2, status: "Maintenance" },
-  { id: "R-07", name: "Jaffna Northern", area: "Northern Province", coverage: "Jaffna, Kilinochchi, Vavuniya, Mannar", activeOrders: 11, trucks: 2, drivers: 4, status: "Active" },
-  { id: "R-08", name: "Trincomalee East", area: "Eastern Province", coverage: "Trincomalee, Batticaloa, Ampara, Kalmunai", activeOrders: 7, trucks: 2, drivers: 4, status: "Active" },
-];
+import { routeService } from "@/services/routeServise";
 
 const ManageRoute = () => {
   const { id } = useParams();
-  const route = routes.find((r) => r.id === id);
+  const [route, setRoute] = useState<any>(null);
+
+  useEffect(() => {
+    if (id) fetchRoute(id);
+  }, [id]);
+
+  const fetchRoute = async (routeId: string) => {
+    const data = await routeService.getRouteById(routeId);
+    setRoute(data);
+  };
 
   if (!route) {
     return <p className="p-6">No route found with ID {id}</p>;
