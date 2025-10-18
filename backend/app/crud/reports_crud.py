@@ -274,3 +274,147 @@ def get_route_wise_report(year: int, quarter: int):
 
     return report
 
+
+
+def get_driver_hours_report(year: int, quarter: int):
+    """
+    Returns driver and assistant working hours for a given year and quarter.
+
+    Returns a list of dicts with:
+        - driver_name
+        - assistant_name
+        - total_deliveries
+        - total_hours
+        - avg_hours_per_delivery
+    """
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT 
+    e.employee_id,
+    e.employee_name,
+    e.role_id,
+    SUM(tea.assigned_hours) AS total_hours,
+    COUNT(td.delivery_id) AS total_deliveries
+FROM truckemployeeassignment tea
+JOIN employee e ON tea.employee_id = e.employee_id
+JOIN truckdelivery td ON tea.truck_delivery_id = td.delivery_id
+WHERE YEAR(td.scheduled_departure) = %s
+  AND QUARTER(td.scheduled_departure) = %s
+GROUP BY e.employee_id
+ORDER BY total_hours DESC;
+
+    """, (year, quarter))
+
+    results = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    report = []
+    for row in results:
+        driver_name, assistant_name, total_deliveries, total_hours, avg_hours = row
+        report.append({
+            "driver_name": driver_name,
+            "assistant_name": assistant_name,
+            "total_deliveries": total_deliveries or 0,
+            "total_hours": total_hours or 0,
+            "avg_hours_per_delivery":avg_hours or 0,
+        })
+    
+    return report
+
+
+
+def get_truck_usage_report(year: int, month: int):
+    """
+    Get truck usage analysis for a given year and month.
+
+    Args:
+        year (int): Year to filter deliveries
+        month (int): Month (1-12) to filter deliveries
+
+    Returns:
+        List[Dict]: Each dict contains truck_id, total_deliveries, total_hours, delivered_count, delayed_count
+    """
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT 
+            td.truck_id,
+            COUNT(*) AS total_deliveries,
+            SUM(TIMESTAMPDIFF(HOUR, td.actual_departure, td.actual_arrival)) AS total_hours,
+            SUM(CASE WHEN td.status = 'Delivered' THEN 1 ELSE 0 END) AS delivered_count,
+            SUM(CASE WHEN td.status = 'Delayed' THEN 1 ELSE 0 END) AS delayed_count
+        FROM truckdelivery td
+        WHERE YEAR(td.scheduled_departure) = %s
+          AND MONTH(td.scheduled_departure) = %s
+        GROUP BY td.truck_id
+        ORDER BY total_deliveries DESC;
+    """, (year, month))
+
+    results = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    report = []
+    for row in results:
+        truck_id, total_deliveries, total_hours, delivered_count, delayed_count = row
+        report.append({
+            "truck_id": truck_id,
+            "total_deliveries": total_deliveries or 0,
+            "total_hours": total_hours or 0,
+            "delivered_count": delivered_count or 0,
+            "delayed_count": delayed_count or 0
+        })
+
+    return report
+
+
+
+
+def get_customer_order_history(customer_id: int):
+    """
+    Get all orders of a customer along with delivery details.
+    """
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT 
+            o.order_id,
+            o.order_date,
+            o.total_price,
+            td.truck_id,
+            td.route_id,
+            td.scheduled_departure,
+            td.actual_departure,
+            td.actual_arrival,
+            td.status AS delivery_status
+        FROM `order` o
+        LEFT JOIN truckdelivery td ON o.order_id = td.order_id
+        WHERE o.customer_id = %s
+        ORDER BY o.order_date DESC;
+    """, (customer_id,))
+
+    results = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    history = []
+    for row in results:
+        order_id, order_date, total_price, truck_id, route_id, sched_dep, actual_dep, actual_arrival, status = row
+        history.append({
+            "order_id": order_id,
+            "order_date": order_date,
+            "total_price": total_price,
+            "truck_id": truck_id,
+            "route_id": route_id,
+            "scheduled_departure": sched_dep,
+            "actual_departure": actual_dep,
+            "actual_arrival": actual_arrival,
+            "delivery_status": status
+        })
+    return history
+

@@ -661,4 +661,363 @@ def generate_route_wise_report_pdf(year: int = Query(...), quarter: int = Query(
 
 
 
+@router.get("/reports/driver-hours")
+def driver_hours_report(year: int = Query(..., description="Year, e.g., 2025"),
+                        quarter: int = Query(..., ge=1, le=4, description="Quarter (1-4)")):
+    data = reports_crud.get_driver_hours_report(year, quarter)
+    return data
 
+
+
+@router.get("/reports/driver-hours/pdf")
+def generate_driver_hours_pdf(year: int = Query(...), quarter: int = Query(...)):
+    data = reports_crud.get_driver_hours_report(year, quarter)
+    current_date = datetime.now()
+    buffer = BytesIO()
+    width, height = A4
+
+    def add_background(canvas, doc):
+        canvas.setFillColor(colors.HexColor("#f7f9fc"))
+        canvas.rect(0, 0, width, height, fill=1, stroke=0)
+        canvas.setStrokeColor(colors.HexColor("#b0b0b0"))
+        canvas.setLineWidth(2)
+        margin = 25
+        canvas.rect(margin, margin, width - 2*margin, height - 2*margin, fill=0, stroke=1)
+
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            rightMargin=50, leftMargin=60,
+                            topMargin=60, bottomMargin=50)
+    styles = getSampleStyleSheet()
+    styles["Title"].alignment = TA_LEFT
+    styles["Normal"].alignment = TA_LEFT
+
+    subheading_style = ParagraphStyle(
+        name="SubHeading",
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=16,
+        textColor=colors.HexColor("#2E4053"),
+        alignment=TA_LEFT,
+        spaceAfter=6
+    )
+
+    elements = []
+
+    # Header
+    elements.append(Paragraph("<b>Kandypack - Driver & Assistant Hours Report</b>", styles["Title"]))
+    elements.append(Spacer(1, 0.2*cm))
+    elements.append(Paragraph(f"Generated on: {current_date.strftime('%Y-%m-%d %H:%M')}", styles["Normal"]))
+    elements.append(Paragraph(f"Quarter: Q{quarter}", styles["Normal"]))
+    elements.append(Paragraph(f"Year: {year}", styles["Normal"]))
+    elements.append(Spacer(1, 0.5*cm))
+
+    # Table
+    table_data = [["Driver", "Assistant", "Total Deliveries", "Total Hours", "Avg Hours/Delivery"]]
+    for item in data:
+        table_data.append([
+            item["driver_name"], 
+            item["assistant_name"],
+            str(item["total_deliveries"]),
+            str(item["total_hours"]),
+            str(item["avg_hours_per_delivery"])
+        ])
+
+    table = Table(table_data, colWidths=[4*cm, 4*cm, 3*cm, 3*cm, 3*cm])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1976D2")),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("ALIGN", (0,0), (-1,-1), "CENTER"),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 10),
+        ("BOTTOMPADDING", (0,0), (-1,0), 8),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.whitesmoke, colors.HexColor("#f2f2f2")])
+    ]))
+    elements.append(table)
+    elements.append(Spacer(1, 0.5*cm))
+
+    # Build PDF
+    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
+    doc.addPageTemplates([PageTemplate(id='bordered', frames=[frame], onPage=add_background)])
+    doc.build(elements)
+
+    buffer.seek(0)
+    return StreamingResponse(buffer, media_type="application/pdf",
+                             headers={"Content-Disposition": f"attachment; filename=driver_hours_q{quarter}_{year}.pdf"})
+
+
+
+
+
+
+@router.get("/reports/truck-usage")
+def truck_usage_report(
+    year: int = Query(..., description="Year, e.g., 2025"),
+    month: int = Query(..., ge=1, le=12, description="Month (1-12)")
+):
+    data = reports_crud.get_truck_usage_report(year, month)
+    return data
+
+
+@router.get("/reports/truck-usage/pdf")
+def generate_truck_usage_pdf(
+    year: int = Query(...),
+    month: int = Query(...)
+):
+    data = reports_crud.get_truck_usage_report(year, month)
+    current_date = datetime.now()
+    buffer = BytesIO()
+    width, height = A4
+
+    def add_background(canvas, doc):
+        canvas.setFillColor(colors.HexColor("#f7f9fc"))
+        canvas.rect(0, 0, width, height, fill=1, stroke=0)
+        canvas.setStrokeColor(colors.HexColor("#b0b0b0"))
+        canvas.setLineWidth(2)
+        margin = 25
+        canvas.rect(margin, margin, width - 2*margin, height - 2*margin, fill=0, stroke=1)
+
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            rightMargin=50, leftMargin=60,
+                            topMargin=60, bottomMargin=50)
+    styles = getSampleStyleSheet()
+    styles["Title"].alignment = TA_LEFT
+    styles["Normal"].alignment = TA_LEFT
+
+    subheading_style = ParagraphStyle(
+        name="SubHeading",
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=16,
+        textColor=colors.HexColor("#2E4053"),
+        alignment=TA_LEFT,
+        spaceAfter=6
+    )
+
+    elements = []
+
+    # Header
+    elements.append(Paragraph("<b>Kandypack - Truck Usage Report</b>", styles["Title"]))
+    elements.append(Spacer(1, 0.2*cm))
+    elements.append(Paragraph(f"Generated on: {current_date.strftime('%Y-%m-%d %H:%M')}", styles["Normal"]))
+    elements.append(Paragraph(f"Month: {month}", styles["Normal"]))
+    elements.append(Paragraph(f"Year: {year}", styles["Normal"]))
+    elements.append(Spacer(1, 0.5*cm))
+
+    # Table
+    elements.append(Paragraph("Truck Usage Details", subheading_style))
+    table_data = [["Truck ID", "Total Deliveries", "Total Hours", "Delivered", "Delayed"]]
+    for item in data:
+        table_data.append([
+            str(item["truck_id"]),
+            str(item["total_deliveries"]),
+            f"{item['total_hours']:.2f}",
+            str(item["delivered_count"]),
+            str(item["delayed_count"])
+        ])
+
+    table = Table(table_data, colWidths=[3*cm, 3*cm, 3*cm, 3*cm, 3*cm])
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1976D2")),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("ALIGN", (0,0), (-1,-1), "CENTER"),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 9),
+        ("BOTTOMPADDING", (0,0), (-1,0), 8),
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.whitesmoke, colors.HexColor("#f2f2f2")])
+    ]))
+    elements.append(table)
+
+    # Build PDF
+    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
+    doc.addPageTemplates([PageTemplate(id='bordered', frames=[frame], onPage=add_background)])
+    doc.build(elements)
+
+    buffer.seek(0)
+    return StreamingResponse(buffer, media_type="application/pdf",
+                             headers={"Content-Disposition": f"attachment; filename=truck_usage_{year}_{month}.pdf"})
+
+
+
+@router.get("/reports/customer-order-history")
+def customer_order_history(customer_id: int = Query(..., description="Customer ID")):
+    """
+    Get all orders of a customer along with delivery details.
+    """
+    data = reports_crud.get_customer_order_history(customer_id)
+    return data
+
+
+@router.get("/reports/customer-order-history/pdf")
+def generate_customer_order_history_pdf(customer_id: int = Query(..., description="Customer ID")):
+    from datetime import datetime as dt
+    
+    data = reports_crud.get_customer_order_history(customer_id)
+    current_date = datetime.now()
+
+    buffer = BytesIO()
+    width, height = A4
+
+    # Background + border
+    def add_background(canvas, doc):
+        canvas.setFillColor(colors.HexColor("#f7f9fc"))
+        canvas.rect(0, 0, width, height, fill=1, stroke=0)
+        canvas.setStrokeColor(colors.HexColor("#b0b0b0"))
+        canvas.setLineWidth(2)
+        margin = 25
+        canvas.rect(margin, margin, width - 2*margin, height - 2*margin, fill=0, stroke=1)
+
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            rightMargin=50, leftMargin=50,
+                            topMargin=60, bottomMargin=50)
+    
+    # Define template early
+    frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='normal')
+    doc.addPageTemplates([PageTemplate(id='bordered', frames=[frame], onPage=add_background)])
+    
+    styles = getSampleStyleSheet()
+    styles["Title"].alignment = TA_LEFT
+    styles["Normal"].alignment = TA_LEFT
+
+    subheading_style = ParagraphStyle(
+        name="SubHeading",
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=16,
+        textColor=colors.HexColor("#2E4053"),
+        alignment=TA_LEFT,
+        spaceAfter=6
+    )
+
+    elements = []
+
+    # Header
+    elements.append(Paragraph("<b>Kandypack - Customer Order History</b>", styles["Title"]))
+    elements.append(Spacer(1, 0.2*cm))
+    elements.append(Paragraph(f"Generated on: {current_date.strftime('%Y-%m-%d %H:%M')}", styles["Normal"]))
+    elements.append(Paragraph(f"Customer ID: {customer_id}", styles["Normal"]))
+    elements.append(Spacer(1, 0.5*cm))
+
+    # Summary
+    total_orders = len(data)
+    delivered_count = sum(1 for d in data if d["delivery_status"] == "Delivered")
+    delayed_count = sum(1 for d in data if d["delivery_status"] == "Delayed")
+    pending_count = sum(1 for d in data if d["delivery_status"] == "Pending")
+
+    elements.append(Paragraph("Summary", subheading_style))
+    
+    # Summary stats as simple text instead of cards to avoid potential issues
+    summary_data = [
+        ["Total Orders", "Delivered", "Delayed", "Pending"],
+        [str(total_orders), str(delivered_count), str(delayed_count), str(pending_count)]
+    ]
+    
+    summary_table = Table(summary_data, colWidths=[doc.width/4]*4)
+    summary_table.setStyle(TableStyle([
+        ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1976D2")),
+        ("BACKGROUND", (0,1), (0,1), colors.HexColor("#E3F2FD")),
+        ("BACKGROUND", (1,1), (1,1), colors.HexColor("#E8F5E9")),
+        ("BACKGROUND", (2,1), (2,1), colors.HexColor("#FFEBEE")),
+        ("BACKGROUND", (3,1), (3,1), colors.HexColor("#FFF8E1")),
+        ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+        ("ALIGN", (0,0), (-1,-1), "CENTER"),
+        ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+        ("FONTNAME", (0,1), (-1,1), "Helvetica-Bold"),
+        ("FONTSIZE", (0,0), (-1,-1), 11),
+        ("TOPPADDING", (0,0), (-1,-1), 8),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+        ("GRID", (0,0), (-1,-1), 1, colors.grey),
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 0.5*cm))
+
+    # Table of orders
+    elements.append(Paragraph("Order Details", subheading_style))
+    
+    if not data:
+        elements.append(Paragraph("No order history found for this customer.", styles["Normal"]))
+    else:
+        table_data = [["Order ID", "Order Date", "Total Price (Rs.)", "Truck ID", "Route", 
+                       "Scheduled Departure", "Actual Departure", "Actual Arrival", "Status"]]
+        
+        # Enhanced data handling
+        def safe_str(value, max_len=25):
+            if value is None:
+                return ""
+            s = str(value)
+            return s[:max_len] + "..." if len(s) > max_len else s
+        
+        def safe_date_fmt(value):
+            if value is None:
+                return ""
+            # Handle both string and datetime objects
+            if isinstance(value, str):
+                try:
+                    # Try to parse ISO format
+                    parsed = dt.fromisoformat(value.replace('Z', '+00:00'))
+                    return parsed.strftime("%Y-%m-%d %H:%M")
+                except:
+                    # If parsing fails, return the string as-is (for date-only strings)
+                    return value
+            elif hasattr(value, 'strftime'):
+                return value.strftime("%Y-%m-%d %H:%M")
+            return str(value)
+        
+        def safe_price(p):
+            try:
+                return f"{float(p):,.2f}" if p is not None else "0.00"
+            except:
+                return "0.00"
+        
+        for d in data:
+            table_data.append([
+                safe_str(d.get("order_id")),
+                safe_date_fmt(d.get("order_date")),
+                safe_price(d.get("total_price")),
+                safe_str(d.get("truck_id")),
+                safe_str(d.get("route_id")),
+                safe_date_fmt(d.get("scheduled_departure")),
+                safe_date_fmt(d.get("actual_departure")),
+                safe_date_fmt(d.get("actual_arrival")),
+                safe_str(d.get("delivery_status"))
+            ])
+
+        # Calculate available width and distribute proportionally
+        available_width = doc.width
+        
+        col_widths = [
+            available_width * 0.08,  # Order ID
+            available_width * 0.10,  # Order Date (shorter for date-only)
+            available_width * 0.10,  # Total Price
+            available_width * 0.07,  # Truck ID
+            available_width * 0.07,  # Route
+            available_width * 0.14,  # Scheduled Departure
+            available_width * 0.14,  # Actual Departure
+            available_width * 0.14,  # Actual Arrival
+            available_width * 0.16   # Status
+        ]
+        
+        table = Table(table_data, colWidths=col_widths)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#1976D2")),
+            ("TEXTCOLOR", (0,0), (-1,0), colors.white),
+            ("ALIGN", (0,0), (-1,-1), "CENTER"),
+            ("FONTNAME", (0,0), (-1,0), "Helvetica-Bold"),
+            ("FONTSIZE", (0,0), (-1,-1), 8),
+            ("TOPPADDING", (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 4),
+            ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+            ("ROWBACKGROUNDS", (0,1), (-1,-1), [colors.whitesmoke, colors.HexColor("#f2f2f2")]),
+            ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+            ("LEFTPADDING", (0,0), (-1,-1), 3),
+            ("RIGHTPADDING", (0,0), (-1,-1), 3)
+        ]))
+        elements.append(table)
+
+    # Build PDF
+    doc.build(elements)
+
+    buffer.seek(0)
+    return StreamingResponse(buffer, media_type="application/pdf",
+                             headers={"Content-Disposition": f"attachment; filename=customer_{customer_id}_order_history.pdf"})
