@@ -44,7 +44,6 @@ CREATE TABLE IF NOT EXISTS Customer (
   customer_name VARCHAR(60) NOT NULL,
   registration_date DATE NOT NULL,
   customer_type_id INT NULL,
-  auth_id INT NULL,
   CONSTRAINT FOREIGN KEY (customer_type_id) REFERENCES customerType(customer_type_id)
 );
 
@@ -231,8 +230,6 @@ CREATE INDEX idx_truckdelivery_truck ON TruckDelivery(truck_id);
 CREATE INDEX idx_truckdelivery_route ON TruckDelivery(route_id);
 CREATE INDEX  idx_train_template_day ON Train (template_id, departure_date_time);
 
-
-SET GLOBAL event_scheduler = ON;
 
 SET GLOBAL event_scheduler = ON;
 
