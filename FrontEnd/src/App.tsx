@@ -13,6 +13,10 @@ import Reports from "./pages/Reports";
 import EmployeeDetails from "./pages/EmployeeDetails";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login"; // your login page
+import ManageCitiesPage from "./pages/ManageCitiesPage";
+import ManageStoresPage from "./pages/ManageStoresPage";
+import ManageProductsPage from "./pages/ManageProductsPage";
+import ManageTrucksPage from "./pages/ManageTrucksPage";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +47,11 @@ const App = () => (
               <Route path="routes" element={<RoutesPage />} />
               <Route path="drivers" element={<Drivers />} />
               <Route path="reports" element={<Reports />} />
+              {/* Management pages */}
+              <Route path="manage/cities" element={<ManageCitiesPage />} />
+              <Route path="manage/stores" element={<ManageStoresPage />} />
+              <Route path="manage/products" element={<ManageProductsPage />} />
+              <Route path="manage/trucks" element={<ManageTrucksPage />} />
               <Route path="employees/:id" element={<EmployeeDetails />} />
             </Route>
           </Route>

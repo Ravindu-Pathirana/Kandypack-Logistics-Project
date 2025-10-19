@@ -34,7 +34,8 @@ const COLORS = ['#4CAF50', '#1976D2', '#FF9800', '#F44336', '#9C27B0', '#00BCD4'
 
 // Helper to get auth headers
 const getAuthHeaders = () => {
-  const token = localStorage.getItem("authToken");
+  // Use the same token key set by Login.tsx and other pages
+  const token = localStorage.getItem("access_token");
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -67,8 +68,16 @@ const InteractiveReports = () => {
     { label: "Customer Satisfaction", value: "94.7%", change: "+2.1%", trend: "up" }
   ]);
 
-  const [loading, setLoading] = useState({});
-  const [downloading, setDownloading] = useState({});
+  type LoadingState = {
+    quarterly?: boolean;
+    mostOrdered?: boolean;
+    cityWise?: boolean;
+    routeWise?: boolean;
+    driverHours?: boolean;
+    truckUsage?: boolean;
+  };
+  const [loading, setLoading] = useState<LoadingState>({});
+  const [downloading, setDownloading] = useState<Record<string, boolean>>({});
   
   // Report data states
   const [quarterlySalesData, setQuarterlySalesData] = useState([]);
@@ -127,7 +136,7 @@ const InteractiveReports = () => {
       const headers = getAuthHeaders();
       const res = await fetch(`${API_BASE}/reports/quarterly-sales`, { headers, cache: 'no-store' });
       if (res.status === 401) {
-        localStorage.removeItem("authToken");
+        localStorage.removeItem("access_token");
         throw new Error("Authentication expired");
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -149,7 +158,7 @@ const InteractiveReports = () => {
         { headers, cache: 'no-store' }
       );
       if (res.status === 401) {
-        localStorage.removeItem("authToken");
+        localStorage.removeItem("access_token");
         throw new Error("Authentication expired");
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -171,7 +180,7 @@ const InteractiveReports = () => {
         { headers, cache: 'no-store' }
       );
       if (res.status === 401) {
-        localStorage.removeItem("authToken");
+        localStorage.removeItem("access_token");
         throw new Error("Authentication expired");
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -193,7 +202,7 @@ const InteractiveReports = () => {
         { headers, cache: 'no-store' }
       );
       if (res.status === 401) {
-        localStorage.removeItem("authToken");
+        localStorage.removeItem("access_token");
         throw new Error("Authentication expired");
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -215,7 +224,7 @@ const InteractiveReports = () => {
         { headers, cache: 'no-store' }
       );
       if (res.status === 401) {
-        localStorage.removeItem("authToken");
+        localStorage.removeItem("access_token");
         throw new Error("Authentication expired");
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -237,7 +246,7 @@ const InteractiveReports = () => {
         { headers, cache: 'no-store' }
       );
       if (res.status === 401) {
-        localStorage.removeItem("authToken");
+        localStorage.removeItem("access_token");
         throw new Error("Authentication expired");
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -256,7 +265,7 @@ const InteractiveReports = () => {
       const headers = getAuthHeaders();
       const res = await fetch(`${API_BASE}${endpoint}`, { headers });
       if (res.status === 401) {
-        localStorage.removeItem("authToken");
+        localStorage.removeItem("access_token");
         throw new Error("Authentication expired");
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -571,6 +580,7 @@ const InteractiveReports = () => {
               onChange={(e) => setDriverHoursFilters({ ...driverHoursFilters, year: e.target.value })}
               className="w-20 h-8 text-xs"
             />
+            
             <select
               value={driverHoursFilters.quarter}
               onChange={(e) => setDriverHoursFilters({ ...driverHoursFilters, quarter: e.target.value })}

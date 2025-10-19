@@ -414,7 +414,7 @@ const ManageTrucks = ({ onBack }) => {
               )}
             </Button>
           </DialogFooter>
-        </Dialog>
+        </DialogContent>
       </Dialog>
     </div>
   );
