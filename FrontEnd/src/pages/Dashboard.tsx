@@ -17,10 +17,12 @@ import {
   X
 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
-  const navigate = useNavigate();
+  const [showCityModal, setShowCityModal] = useState(false);
+  const [showStoreModal, setShowStoreModal] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [showTruckModal, setShowTruckModal] = useState(false);
 
   const stats = [
     {
@@ -82,7 +84,7 @@ const Dashboard = () => {
           <h3 className="text-xs font-semibold uppercase text-blue-200 px-1">Locations</h3>
           <Button 
             className="w-full justify-start gap-3 bg-white/20 hover:bg-white/30 text-white border border-white/30"
-            onClick={() => navigate('/manage/cities')}
+            onClick={() => setShowCityModal(true)}
           >
             <MapPin className="h-4 w-4" />
             Manage Cities
@@ -94,7 +96,7 @@ const Dashboard = () => {
           <h3 className="text-xs font-semibold uppercase text-blue-200 px-1">Stores</h3>
           <Button 
             className="w-full justify-start gap-3 bg-white/20 hover:bg-white/30 text-white border border-white/30"
-            onClick={() => navigate('/manage/stores')}
+            onClick={() => setShowStoreModal(true)}
           >
             <Building2 className="h-4 w-4" />
             Manage Stores
@@ -106,7 +108,7 @@ const Dashboard = () => {
           <h3 className="text-xs font-semibold uppercase text-blue-200 px-1">Inventory</h3>
           <Button 
             className="w-full justify-start gap-3 bg-white/20 hover:bg-white/30 text-white border border-white/30"
-            onClick={() => navigate('/manage/products')}
+            onClick={() => setShowProductModal(true)}
           >
             <ProductIcon className="h-4 w-4" />
             Manage Products
@@ -118,7 +120,7 @@ const Dashboard = () => {
           <h3 className="text-xs font-semibold uppercase text-blue-200 px-1">Fleet</h3>
           <Button 
             className="w-full justify-start gap-3 bg-white/20 hover:bg-white/30 text-white border border-white/30"
-            onClick={() => navigate('/manage/trucks')}
+            onClick={() => setShowTruckModal(true)}
           >
             <Truck className="h-4 w-4" />
             Manage Trucks
@@ -273,7 +275,85 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Management modals removed; navigation handles route changes */}
+      {/* City Modal */}
+      {showCityModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-96">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle>Manage Cities</CardTitle>
+              <button 
+                onClick={() => setShowCityModal(false)}
+                className="hover:opacity-70"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">City management component will be added here</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Store Modal */}
+      {showStoreModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-96">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle>Manage Stores</CardTitle>
+              <button 
+                onClick={() => setShowStoreModal(false)}
+                className="hover:opacity-70"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Store management component will be added here</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Product Modal */}
+      {showProductModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-96">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle>Manage Products</CardTitle>
+              <button 
+                onClick={() => setShowProductModal(false)}
+                className="hover:opacity-70"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Product management component will be added here</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Truck Modal */}
+      {showTruckModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-96">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle>Manage Trucks</CardTitle>
+              <button 
+                onClick={() => setShowTruckModal(false)}
+                className="hover:opacity-70"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Truck management component will be added here</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import orders, trains, reports,products, employees, auth, drivers
+from app.routers import orders, trains, reports,products, employees, auth, drivers, trucks, stores, cities, customers1
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI (
@@ -10,12 +10,14 @@ app = FastAPI (
 
 
 #register routers
-app.include_router(auth.router)
+app.include_router(auth.router, tags=["auth"])
 app.include_router(employees.router, tags=["employees"])
 app.include_router(drivers.router, tags=["drivers"])
 app.include_router(reports.router, tags=["reports"])
-# app.include_router(products.router)
-# app.include_router(employees.router)
+app.include_router(trucks.router,tags=["trucks"])
+app.include_router(stores.router,tags=["stores"])
+app.include_router(cities.router,tags=["products"])
+app.include_router(customers1.router,tags=["customers"])
 
 
 app.add_middleware(
