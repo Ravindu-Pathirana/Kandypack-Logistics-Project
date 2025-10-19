@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
   Phone,
+  Mail,
+  User,
   MapPin,
   Calendar,
   Clock,
@@ -27,59 +29,91 @@ const EmployeeDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Helper function to get auth headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      navigate("/login");
+      throw new Error("No authentication token found");
+    }
+    return {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    };
+  };
+
+  // Helper function for authenticated fetch
+  const authenticatedFetch = async (url, options = {}) => {
+    try {
+      const headers = getAuthHeaders();
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...headers,
+          ...options.headers,
+        },
+      });
+
+      if (response.status === 401) {
+        localStorage.removeItem("access_token");
+        navigate("/login");
+        throw new Error("Authentication expired. Please login again.");
+      }
+
+      return response;
+    } catch (err) {
+      if (err.message === "No authentication token found") {
+        throw err;
+      }
+      throw err;
+    }
+  };
+
   useEffect(() => {
     const fetchEmployeeDetails = async () => {
       try {
         setLoading(true);
-        // Try to fetch from a details endpoint if available
-        // If not, we'll fetch from the list and find the employee
-        const [driversRes, assistantsRes] = await Promise.all([
-          fetch(`${API_BASE}/drivers`, { cache: "no-store" }),
-          fetch(`${API_BASE}/assistants`, { cache: "no-store" }),
-        ]);
+        const response = await authenticatedFetch(`${API_BASE}/employees/${id}`, { cache: "no-store" });
 
-        if (!driversRes.ok || !assistantsRes.ok) {
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error("Employee not found");
+          }
+          if (response.status === 403) {
+            throw new Error("Access denied");
+          }
           throw new Error("Failed to fetch employee data");
         }
 
-        const drivers = await driversRes.json();
-        const assistants = await assistantsRes.json();
+        const data = await response.json();
 
-        // Combine and find the employee
-        const allEmployees = [
-          ...drivers.map(d => ({
-            id: d.employee_id || d.id,
-            storeId: d.store_id,
-            phone: d.official_contact_number || d.phone || "N/A",
-            status: d.status || "Available",
-            weeklyHours: d.total_hours_week || d.weekly_hours || d.weeklyHours || 0,
-            maxWeeklyHours: 40,
-            completedDeliveries: d.consecutive_deliveries || d.completed_deliveries || d.completedDeliveries || 0,
-            nextAvailableTime: d.next_available_time || d.nextAvailableTime || "N/A",
-            name: d.employee_name || d.name || `Driver ${d.employee_id || d.id}`,
-            role: "Driver",
-          })),
-          ...assistants.map(a => ({
-            id: a.employee_id || a.id,
-            storeId: a.store_id,
-            phone: a.official_contact_number || a.phone || "N/A",
-            status: a.status || "Available",
-            weeklyHours: a.total_hours_week || a.weekly_hours || a.weeklyHours || 0,
-            maxWeeklyHours: 60,
-            completedDeliveries: a.consecutive_deliveries || a.completed_deliveries || a.completedDeliveries || 0,
-            nextAvailableTime: a.next_available_time || a.nextAvailableTime || "N/A",
-            name: a.employee_name || a.name || `Assistant ${a.employee_id || a.id}`,
-            role: "Assistant",
-          })),
-        ];
+        const roleMap = {
+          1: { name: "Manager", maxHours: 40 },
+          2: { name: "Driver", maxHours: 40 },
+          3: { name: "Assistant", maxHours: 60 },
+          4: { name: "Assistant", maxHours: 60 },
+        };
 
-        const foundEmployee = allEmployees.find(emp => emp.id.toString() === id);
+        const mappedEmployee = {
+          id: data.employee_id,
+          name: data.employee_name,
+          username: data.username,
+          email: data.email,
+          phone: data.official_contact_number || "N/A",
+          nic: data.employee_nic,
+          registeredDate: data.registrated_date,
+          roleId: data.role_id,
+          role: roleMap[data.role_id]?.name || "Unknown",
+          storeId: data.store_id,
+          status: data.status || "Available",
+          weeklyHours: data.total_hours_week || 0,
+          maxWeeklyHours: roleMap[data.role_id]?.maxHours || 40,
+          consecutiveDeliveries: data.consecutive_deliveries || 0,
+          nextAvailableTime: data.next_available_time || "N/A",
+          lastDeliveryTime: data.last_delivery_time || "N/A",
+        };
 
-        if (!foundEmployee) {
-          throw new Error("Employee not found");
-        }
-
-        setEmployee(foundEmployee);
+        setEmployee(mappedEmployee);
         setError(null);
       } catch (err) {
         console.error(err);
@@ -99,6 +133,7 @@ const EmployeeDetails = () => {
         return "bg-blue-100 text-blue-800";
       case "Available":
       case "available":
+      case "Active":
         return "bg-green-100 text-green-800";
       case "On Leave":
       case "on_leave":
@@ -155,6 +190,7 @@ const EmployeeDetails = () => {
 
   const hoursStatus = getHoursStatus(employee.weeklyHours, employee.maxWeeklyHours);
   const hoursPercentage = (employee.weeklyHours / employee.maxWeeklyHours) * 100;
+  const isDeliveryRole = employee.role === "Driver" || employee.role === "Assistant";
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -188,11 +224,47 @@ const EmployeeDetails = () => {
           </CardContent>
         </Card>
 
-        {/* Contact & Basic Info */}
+        {/* Personal & Contact Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Contact Information</CardTitle>
+              <CardTitle className="text-lg">Personal Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <User className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Username</p>
+                  <p className="font-medium">{employee.username}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Mail className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Email</p>
+                  <p className="font-medium">{employee.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <User className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">NIC</p>
+                  <p className="font-medium">{employee.nic}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Calendar className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Registered Date</p>
+                  <p className="font-medium">{employee.registeredDate}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Contact & Location</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
@@ -211,33 +283,47 @@ const EmployeeDetails = () => {
               </div>
             </CardContent>
           </Card>
+        </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Availability</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Clock className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Current Status</p>
-                  <p className="font-medium">{employee.status}</p>
-                </div>
+        {/* Availability */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Availability</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Clock className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Current Status</p>
+                <p className="font-medium">{employee.status}</p>
               </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Next Available</p>
+                <p className="font-medium">
+                  {employee.nextAvailableTime !== "N/A"
+                    ? new Date(employee.nextAvailableTime).toLocaleString()
+                    : "Currently Available"}
+                </p>
+              </div>
+            </div>
+            {isDeliveryRole && (
               <div className="flex items-center gap-3">
                 <Calendar className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Next Available</p>
+                  <p className="text-sm text-muted-foreground">Last Delivery</p>
                   <p className="font-medium">
-                    {employee.nextAvailableTime !== "N/A"
-                      ? new Date(employee.nextAvailableTime).toLocaleString()
-                      : "Currently Available"}
+                    {employee.lastDeliveryTime !== "N/A"
+                      ? new Date(employee.lastDeliveryTime).toLocaleString()
+                      : "N/A"}
                   </p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Performance Metrics */}
         <Card>
@@ -275,18 +361,20 @@ const EmployeeDetails = () => {
               </div>
 
               {/* Completed Deliveries */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-muted-foreground" />
-                  <h3 className="font-semibold">Completed Deliveries</h3>
+              {isDeliveryRole && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-muted-foreground" />
+                    <h3 className="font-semibold">Completed Deliveries</h3>
+                  </div>
+                  <div>
+                    <div className="text-3xl font-bold mb-2">{employee.consecutiveDeliveries}</div>
+                    <p className="text-sm text-muted-foreground">
+                      Consecutive deliveries completed this period
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-3xl font-bold mb-2">{employee.completedDeliveries}</div>
-                  <p className="text-sm text-muted-foreground">
-                    Consecutive deliveries completed this period
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -298,10 +386,12 @@ const EmployeeDetails = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-muted/50 rounded-lg">
-                <p className="text-2xl font-bold">{employee.completedDeliveries}</p>
-                <p className="text-sm text-muted-foreground">Total Deliveries</p>
-              </div>
+              {isDeliveryRole && (
+                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                  <p className="text-2xl font-bold">{employee.consecutiveDeliveries}</p>
+                  <p className="text-sm text-muted-foreground">Total Deliveries</p>
+                </div>
+              )}
               <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <p className="text-2xl font-bold">{employee.weeklyHours}h</p>
                 <p className="text-sm text-muted-foreground">This Week</p>

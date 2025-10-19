@@ -32,7 +32,34 @@ import {
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 const COLORS = ['#4CAF50', '#1976D2', '#FF9800', '#F44336', '#9C27B0', '#00BCD4'];
 
+// Helper to get auth headers
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("authToken");
+  return {
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+};
+
+// Helper to get current year and quarter
+const getCurrentQuarter = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  const quarter = Math.ceil(month / 3);
+  return { year: year.toString(), quarter: quarter.toString() };
+};
+
+// Helper to get current month
+const getCurrentMonth = () => {
+  const now = new Date();
+  return (now.getMonth() + 1).toString();
+};
+
 const InteractiveReports = () => {
+  const currentQuarter = getCurrentQuarter();
+  const currentMonth = getCurrentMonth();
+
   const [quickStats, setQuickStats] = useState([
     { label: "This Quarter Revenue", value: "Rs. 24.8M", change: "+12.5%", trend: "up" },
     { label: "Orders Delivered", value: "1,247", change: "+8.3%", trend: "up" },
@@ -51,21 +78,32 @@ const InteractiveReports = () => {
   const [driverHoursData, setDriverHoursData] = useState([]);
   const [truckUsageData, setTruckUsageData] = useState([]);
 
-  // Filters
-  const [mostOrderedFilters, setMostOrderedFilters] = useState({ year: "2025", quarter: "1" });
-  const [cityWiseFilters, setCityWiseFilters] = useState({ year: "2025", quarter: "1" });
-  const [routeWiseFilters, setRouteWiseFilters] = useState({ year: "2025", quarter: "1" });
-  const [driverHoursFilters, setDriverHoursFilters] = useState({ year: "2025", quarter: "1" });
-  const [truckUsageFilters, setTruckUsageFilters] = useState({ year: "2025", month: "1" });
+  // Filters - initialized with current quarter/month
+  const [mostOrderedFilters, setMostOrderedFilters] = useState({ year: currentQuarter.year, quarter: currentQuarter.quarter });
+  const [cityWiseFilters, setCityWiseFilters] = useState({ year: currentQuarter.year, quarter: currentQuarter.quarter });
+  const [routeWiseFilters, setRouteWiseFilters] = useState({ year: currentQuarter.year, quarter: currentQuarter.quarter });
+  const [driverHoursFilters, setDriverHoursFilters] = useState({ year: currentQuarter.year, quarter: currentQuarter.quarter });
+  const [truckUsageFilters, setTruckUsageFilters] = useState({ year: currentQuarter.year, month: currentMonth });
 
+  // Load all data on component mount
   useEffect(() => {
     loadQuarterlySales();
     loadKpis();
+    loadMostOrdered();
+    loadCityWiseSales();
+    loadRouteWise();
+    loadDriverHours();
+    loadTruckUsage();
   }, []);
 
   const loadKpis = async () => {
     try {
-      const res = await fetch(`${API_BASE}/dasshboard/kpi`);
+      const headers = getAuthHeaders();
+      const res = await fetch(`${API_BASE}/dasshboard/kpi`, { headers });
+      if (res.status === 401) {
+        localStorage.removeItem("authToken");
+        return;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (!Array.isArray(data)) return;
@@ -86,7 +124,12 @@ const InteractiveReports = () => {
   const loadQuarterlySales = async () => {
     setLoading(prev => ({ ...prev, quarterly: true }));
     try {
-      const res = await fetch(`${API_BASE}/reports/quarterly-sales`, { cache: 'no-store' });
+      const headers = getAuthHeaders();
+      const res = await fetch(`${API_BASE}/reports/quarterly-sales`, { headers, cache: 'no-store' });
+      if (res.status === 401) {
+        localStorage.removeItem("authToken");
+        throw new Error("Authentication expired");
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setQuarterlySalesData(Array.isArray(data) ? data : []);
@@ -97,13 +140,18 @@ const InteractiveReports = () => {
     }
   };
 
-  const loadMostOrdered = async () => {
+  const loadMostOrdered = async (filters = mostOrderedFilters) => {
     setLoading(prev => ({ ...prev, mostOrdered: true }));
     try {
+      const headers = getAuthHeaders();
       const res = await fetch(
-        `${API_BASE}/reports/most-ordered-items?year=${mostOrderedFilters.year}&quarter=${mostOrderedFilters.quarter}`,
-        { cache: 'no-store' }
+        `${API_BASE}/reports/most-ordered-items?year=${filters.year}&quarter=${filters.quarter}`,
+        { headers, cache: 'no-store' }
       );
+      if (res.status === 401) {
+        localStorage.removeItem("authToken");
+        throw new Error("Authentication expired");
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setMostOrderedData(Array.isArray(data) ? data.slice(0, 10) : []);
@@ -114,13 +162,18 @@ const InteractiveReports = () => {
     }
   };
 
-  const loadCityWiseSales = async () => {
+  const loadCityWiseSales = async (filters = cityWiseFilters) => {
     setLoading(prev => ({ ...prev, cityWise: true }));
     try {
+      const headers = getAuthHeaders();
       const res = await fetch(
-        `${API_BASE}/reports/city-wise-sales?year=${cityWiseFilters.year}&quarter=${cityWiseFilters.quarter}`,
-        { cache: 'no-store' }
+        `${API_BASE}/reports/city-wise-sales?year=${filters.year}&quarter=${filters.quarter}`,
+        { headers, cache: 'no-store' }
       );
+      if (res.status === 401) {
+        localStorage.removeItem("authToken");
+        throw new Error("Authentication expired");
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setCityWiseData(Array.isArray(data) ? data : []);
@@ -131,13 +184,18 @@ const InteractiveReports = () => {
     }
   };
 
-  const loadRouteWise = async () => {
+  const loadRouteWise = async (filters = routeWiseFilters) => {
     setLoading(prev => ({ ...prev, routeWise: true }));
     try {
+      const headers = getAuthHeaders();
       const res = await fetch(
-        `${API_BASE}/reports/route-wise-report?year=${routeWiseFilters.year}&quarter=${routeWiseFilters.quarter}`,
-        { cache: 'no-store' }
+        `${API_BASE}/reports/route-wise-report?year=${filters.year}&quarter=${filters.quarter}`,
+        { headers, cache: 'no-store' }
       );
+      if (res.status === 401) {
+        localStorage.removeItem("authToken");
+        throw new Error("Authentication expired");
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setRouteWiseData(Array.isArray(data) ? data : []);
@@ -148,13 +206,18 @@ const InteractiveReports = () => {
     }
   };
 
-  const loadDriverHours = async () => {
+  const loadDriverHours = async (filters = driverHoursFilters) => {
     setLoading(prev => ({ ...prev, driverHours: true }));
     try {
+      const headers = getAuthHeaders();
       const res = await fetch(
-        `${API_BASE}/reports/driver-hours?year=${driverHoursFilters.year}&quarter=${driverHoursFilters.quarter}`,
-        { cache: 'no-store' }
+        `${API_BASE}/reports/driver-hours?year=${filters.year}&quarter=${filters.quarter}`,
+        { headers, cache: 'no-store' }
       );
+      if (res.status === 401) {
+        localStorage.removeItem("authToken");
+        throw new Error("Authentication expired");
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setDriverHoursData(Array.isArray(data) ? data : []);
@@ -165,13 +228,18 @@ const InteractiveReports = () => {
     }
   };
 
-  const loadTruckUsage = async () => {
+  const loadTruckUsage = async (filters = truckUsageFilters) => {
     setLoading(prev => ({ ...prev, truckUsage: true }));
     try {
+      const headers = getAuthHeaders();
       const res = await fetch(
-        `${API_BASE}/reports/truck-usage?year=${truckUsageFilters.year}&month=${truckUsageFilters.month}`,
-        { cache: 'no-store' }
+        `${API_BASE}/reports/truck-usage?year=${filters.year}&month=${filters.month}`,
+        { headers, cache: 'no-store' }
       );
+      if (res.status === 401) {
+        localStorage.removeItem("authToken");
+        throw new Error("Authentication expired");
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setTruckUsageData(Array.isArray(data) ? data : []);
@@ -185,7 +253,12 @@ const InteractiveReports = () => {
   const downloadPDF = async (endpoint, filename, loadingKey) => {
     setDownloading(prev => ({ ...prev, [loadingKey]: true }));
     try {
-      const res = await fetch(`${API_BASE}${endpoint}`);
+      const headers = getAuthHeaders();
+      const res = await fetch(`${API_BASE}${endpoint}`, { headers });
+      if (res.status === 401) {
+        localStorage.removeItem("authToken");
+        throw new Error("Authentication expired");
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -320,7 +393,7 @@ const InteractiveReports = () => {
               <option value="3">Q3</option>
               <option value="4">Q4</option>
             </select>
-            <Button onClick={loadMostOrdered} disabled={loading.mostOrdered} size="sm" className="h-8 text-xs px-2">
+            <Button onClick={() => loadMostOrdered(mostOrderedFilters)} disabled={loading.mostOrdered} size="sm" className="h-8 text-xs px-2">
               {loading.mostOrdered ? "Loading..." : "Load"}
             </Button>
           </div>
@@ -337,7 +410,7 @@ const InteractiveReports = () => {
             </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-56 text-muted-foreground text-sm">
-              {loading.mostOrdered ? "Loading..." : "Select filters and click Load"}
+              {loading.mostOrdered ? "Loading..." : "No data available for this period"}
             </div>
           )}
         </CardContent>
@@ -381,7 +454,7 @@ const InteractiveReports = () => {
               <option value="3">Q3</option>
               <option value="4">Q4</option>
             </select>
-            <Button onClick={loadCityWiseSales} disabled={loading.cityWise} size="sm" className="h-8 text-xs px-2">
+            <Button onClick={() => loadCityWiseSales(cityWiseFilters)} disabled={loading.cityWise} size="sm" className="h-8 text-xs px-2">
               {loading.cityWise ? "Loading..." : "Load"}
             </Button>
           </div>
@@ -401,7 +474,7 @@ const InteractiveReports = () => {
             </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-56 text-muted-foreground text-sm">
-              {loading.cityWise ? "Loading..." : "Select filters and click Load"}
+              {loading.cityWise ? "Loading..." : "No data available for this period"}
             </div>
           )}
         </CardContent>
@@ -445,7 +518,7 @@ const InteractiveReports = () => {
               <option value="3">Q3</option>
               <option value="4">Q4</option>
             </select>
-            <Button onClick={loadRouteWise} disabled={loading.routeWise} size="sm" className="h-8 text-xs px-2">
+            <Button onClick={() => loadRouteWise(routeWiseFilters)} disabled={loading.routeWise} size="sm" className="h-8 text-xs px-2">
               {loading.routeWise ? "Loading..." : "Load"}
             </Button>
           </div>
@@ -464,7 +537,7 @@ const InteractiveReports = () => {
             </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-56 text-muted-foreground text-sm">
-              {loading.routeWise ? "Loading..." : "Select filters and click Load"}
+              {loading.routeWise ? "Loading..." : "No data available for this period"}
             </div>
           )}
         </CardContent>
@@ -508,7 +581,7 @@ const InteractiveReports = () => {
               <option value="3">Q3</option>
               <option value="4">Q4</option>
             </select>
-            <Button onClick={loadDriverHours} disabled={loading.driverHours} size="sm" className="h-8 text-xs px-2">
+            <Button onClick={() => loadDriverHours(driverHoursFilters)} disabled={loading.driverHours} size="sm" className="h-8 text-xs px-2">
               {loading.driverHours ? "Loading..." : "Load"}
             </Button>
           </div>
@@ -540,7 +613,7 @@ const InteractiveReports = () => {
             </div>
           ) : (
             <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
-              {loading.driverHours ? "Loading..." : "Select filters and click Load"}
+              {loading.driverHours ? "Loading..." : "No data available for this period"}
             </div>
           )}
         </CardContent>
@@ -583,7 +656,7 @@ const InteractiveReports = () => {
                 <option key={i + 1} value={i + 1}>{i + 1}</option>
               ))}
             </select>
-            <Button onClick={loadTruckUsage} disabled={loading.truckUsage} size="sm" className="h-8 text-xs px-2">
+            <Button onClick={() => loadTruckUsage(truckUsageFilters)} disabled={loading.truckUsage} size="sm" className="h-8 text-xs px-2">
               {loading.truckUsage ? "Loading..." : "Load"}
             </Button>
           </div>
@@ -603,7 +676,7 @@ const InteractiveReports = () => {
             </ResponsiveContainer>
           ) : (
             <div className="flex items-center justify-center h-56 text-muted-foreground text-sm">
-              {loading.truckUsage ? "Loading..." : "Select filters and click Load"}
+              {loading.truckUsage ? "Loading..." : "No data available for this period"}
             </div>
           )}
         </CardContent>

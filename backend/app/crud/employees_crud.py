@@ -1,5 +1,7 @@
 from app.core.security import hash_password
 from datetime import datetime
+from app.core.database import get_db
+from typing import Optional
 
 def create_auth_user(conn, username: str, email: str, password_hash: str) -> int:
     cursor = conn.cursor()
@@ -14,16 +16,18 @@ def create_auth_user(conn, username: str, email: str, password_hash: str) -> int
 
 
 def create_employee(conn, employee_name, employee_nic, official_contact_number,
-                    registrated_date, role_id, store_id) -> int:
+                    registrated_date, role_id, store_id, username, password) -> int:
     cursor = conn.cursor()
+
+    hashed_password = hash_password(password)
     cursor.execute(
         """
         INSERT INTO employee
-        (employee_name, employee_nic, official_contact_number, registrated_date,
+        (employee_name, username, password_hash, employee_nic, official_contact_number, registrated_date,
          employee_status, total_hours_week, role_id, store_id)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
-        (employee_name, employee_nic, official_contact_number, registrated_date,
+        (employee_name,username, hashed_password, employee_nic, official_contact_number, registrated_date,
          "Active", 0, role_id, store_id)
     )
     employee_id = cursor.lastrowid
@@ -55,3 +59,40 @@ def create_assistant(conn, employee_id):
         (employee_id, 0, next_available_time, 'Available')
     )
     cursor.close()
+
+
+def get_managers(status: Optional[str] = None):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+
+    query = "SELECT * FROM employee WHERE role_id = 1"
+    params = []
+
+    if status:
+        query += " AND employee_status = %s"
+        params.append(status)
+
+    cursor.execute(query, params)
+    managers = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+    return managers
+
+
+from app.core.database import get_db
+
+def get_employee_info(employee_id: int):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+
+    # Call the stored procedure you created
+    cursor.callproc("GetEmployeeInfo", [employee_id])
+
+    result = None
+    for res in cursor.stored_results():
+        result = res.fetchone()
+
+    cursor.close()
+    conn.close()
+    return result

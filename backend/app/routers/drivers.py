@@ -1,32 +1,30 @@
-from fastapi import APIRouter
-from app.crud import drivers_crud, employees_crud
+from fastapi import APIRouter, Depends
 from typing import Optional
-from fastapi import Query
+from app.crud import drivers_crud
+from app.core.security import get_current_user
+
 router = APIRouter()
 
 
-@router.get("/summary")
-def get_summary():
-    return drivers_crud.get_summary()
-    
-
 @router.get("/drivers")
-def get_employees(
-    status: Optional[str] = Query(None, description="Filter by status: available, on_duty, on_leave")
-):
+def get_drivers_endpoint(current_user=Depends(get_current_user)):
     """
-    Returns a list of employees with optional filters by role and status.
+    Returns a list of drivers filtered by the current user's role and store.
     """
-    return drivers_crud.get_drivers(status=status)
+    return drivers_crud.get_drivers(role=current_user.role, store_id=current_user.store_id)
 
 
 @router.get("/assistants")
-def get_assistants(
-    status: Optional[str] = Query(None, description="Filter by status: available, on_duty, on_leave")
-):
+def get_assistants_endpoint(current_user=Depends(get_current_user)):
     """
-    Returns a list of assistants with optional filters by status.
+    Returns a list of assistants filtered by the current user's role and store.
     """
-    return drivers_crud.get_assistants(status=status)
+    return drivers_crud.get_assistants(role=current_user.role, store_id=current_user.store_id)
 
 
+@router.get("/summary")
+def get_summary_endpoint(current_user=Depends(get_current_user)):
+    """
+    Returns a summary for the current user.
+    """
+    return drivers_crud.get_summary(role=current_user.role, store_id=current_user.store_id)
