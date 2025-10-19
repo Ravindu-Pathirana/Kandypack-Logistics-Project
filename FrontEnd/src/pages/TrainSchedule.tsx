@@ -1,7 +1,7 @@
 // src/pages/TrainSchedule.tsx
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { trainService } from "@/services/trainservice";
+import { trainService } from "@/services/trainService";
 import { AddTrainTripModal } from "@/components/AddTrainTripModal";
 import { Button } from "@/components/ui/button";
 

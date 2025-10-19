@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { driverService, type Driver, type CreateDriverDto } from '@/services/driverService';
 import { useNavigate } from "react-router-dom";
+import { AssignRouteModal } from "@/components/AssignRouteModal";
+import { ViewScheduleModal } from "@/components/ViewScheduleModal";
 import { 
     Users, 
     Clock, 
@@ -27,10 +29,16 @@ const Drivers = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  
+  // Modal state
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [assignRouteModalOpen, setAssignRouteModalOpen] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState<{ id: string; name: string; currentRoute?: string } | null>(null);
 
   // fetch
   const fetchDrivers = async () => {
     try {
+      setLoading(true);
       const data = await driverService.getAllDrivers();
       setRawDrivers(data || []);
       setError(null);
@@ -42,7 +50,24 @@ const Drivers = () => {
     }
   };
 
-  useEffect(() => { fetchDrivers(); }, []);
+  // Refetch on mount and when navigating back to this page
+  useEffect(() => { 
+    fetchDrivers(); 
+  }, []);
+  
+  // Refetch when page becomes visible (user navigates back)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchDrivers();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // Map backend Driver -> UI driver shape
   const mapApiDriver = (d: Driver) => ({
@@ -239,10 +264,25 @@ const Drivers = () => {
 
                 {/* Actions */}
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => {
+                      setSelectedDriver({ id: person.id!, name: person.name, currentRoute: person.currentRoute });
+                      setScheduleModalOpen(true);
+                    }}
+                  >
                     View Schedule
                   </Button>
-                  <Button size="sm" className="flex-1">
+                  <Button 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => {
+                      setSelectedDriver({ id: person.id!, name: person.name, currentRoute: person.currentRoute });
+                      setAssignRouteModalOpen(true);
+                    }}
+                  >
                     Assign Route
                   </Button>
                 </div>
@@ -324,6 +364,28 @@ const Drivers = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modals */}
+      {selectedDriver && (
+        <>
+          <ViewScheduleModal
+            open={scheduleModalOpen}
+            onOpenChange={setScheduleModalOpen}
+            driverId={selectedDriver.id}
+            driverName={selectedDriver.name}
+          />
+          <AssignRouteModal
+            open={assignRouteModalOpen}
+            onOpenChange={setAssignRouteModalOpen}
+            driverId={selectedDriver.id}
+            driverName={selectedDriver.name}
+            currentRoute={selectedDriver.currentRoute}
+            onAssigned={() => {
+              fetchDrivers(); // Refresh the drivers list after assignment
+            }}
+          />
+        </>
+      )}
     </div>
   );
 };

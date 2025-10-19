@@ -1,7 +1,10 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
+import { routeService, type Route as RouteType } from "@/services/routeServise";
+import { useToast } from "@/components/ui/use-toast";
 
 import { 
   Route, 
@@ -15,9 +18,33 @@ import {
 
 const Routes = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [routes, setRoutes] = useState<RouteType[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  
-  const routes = [
+  // Fetch routes from service
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      try {
+        const data = await routeService.getAllRoutes();
+        setRoutes(data);
+      } catch (error) {
+        console.error("Error fetching routes:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load routes",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchRoutes();
+  }, [toast]);
+
+  // Fallback static routes for backwards compatibility
+  const staticRoutes = [
     {
       id: "R-01",
       name: "Colombo Central",

@@ -1,3 +1,5 @@
+// ...imports and Orders component only below...
+import { useEffect } from "react";
 import { useState } from "react";
 import {
   Card,
@@ -6,6 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+const STORAGE_KEY = "kandypack_orders";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -38,7 +42,7 @@ const Orders = () => {
     destination: "",
   });
 
-  const [orders, setOrders] = useState([
+  const initialOrders = [
     {
       id: "ORD-001",
       customer: "Super Market Colombo",
@@ -84,7 +88,30 @@ const Orders = () => {
       trainTrip: "TR-005",
       driver: "Sunil Fernando",
     },
-  ]);
+  ];
+
+  const loadOrders = () => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return initialOrders;
+  };
+
+  const [orders, setOrders] = useState<any[]>(loadOrders());
+
+  // Reload orders from localStorage on mount and when page becomes visible
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        setOrders(loadOrders());
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
 
   // --- Status color function ---
   const getStatusColor = (status: string) => {
@@ -133,15 +160,21 @@ const Orders = () => {
     setStatusOpen(true);
   };
 
+  const saveOrders = (orders: any[]) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+  };
   const handleStatusChange = (id: string, newStatus: string) => {
     const updatedOrders = orders.map((o) =>
       o.id === id ? { ...o, status: newStatus } : o
     );
     setOrders(updatedOrders);
+    saveOrders(updatedOrders);
   };
 
   const handleAddNewOrder = (newOrder: any) => {
-    setOrders((prev) => [...prev, newOrder]);
+    const updated = [...loadOrders(), newOrder];
+    saveOrders(updated);
+    setOrders(updated);
   };
 
   const clearSearch = () => setSearchTerm("");

@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { trainService } from "@/services/trainservice";
+import { trainService } from "@/services/trainService";
 
 interface AddTrainTripModalProps {
   open: boolean;
