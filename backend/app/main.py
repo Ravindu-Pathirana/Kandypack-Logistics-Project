@@ -11,7 +11,7 @@ app = FastAPI (
 
 #register routers
 app.include_router(auth.router)
-# app.include_router(orders.router)
+app.include_router(employees.router, tags=["employees"])
 app.include_router(drivers.router, tags=["drivers"])
 app.include_router(reports.router, tags=["reports"])
 # app.include_router(products.router)
