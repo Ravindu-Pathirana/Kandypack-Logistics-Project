@@ -365,7 +365,7 @@ const ManageStores = ({ isOpen, onClose }) => {
                 )}
               </Button>
             </DialogFooter>
-          </Dialog>
+          </DialogContent>
         </Dialog>
       </Card>
     </div>
