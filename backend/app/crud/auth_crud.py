@@ -2,6 +2,7 @@
 from app.core.database import get_db
 
 def get_user_by_username(username: str):
+    
     db = get_db() 
     cursor = db.cursor(dictionary=True)
     cursor.execute(

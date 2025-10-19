@@ -83,3 +83,4 @@ def get_employee_info(
         raise HTTPException(status_code=404, detail="Employee not found")
     
     return employee
+
