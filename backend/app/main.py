@@ -18,7 +18,7 @@ app.add_middleware(
 
 #register routers
 app.include_router(auth.router)
-# app.include_router(orders.router)
+app.include_router(orders.router)
 app.include_router(trains.router)
 # app.include_router(reports.router)
 # app.include_router(products.router)

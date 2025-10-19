@@ -1,4 +1,4 @@
-CREATE DATABASE  kandypacklogistics;
+CREATE DATABASE kandypacklogistics;
 USE kandypacklogistics;
 
 /* 1) Auth_users */
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS Customer (
   registration_date DATE NOT NULL,
   customer_type_id INT NULL,
   auth_id INT NULL,
-  CONSTRAINT  FOREIGN KEY (customer_type_id) REFERENCES customerType(customer_type_id)
+  CONSTRAINT FOREIGN KEY (customer_type_id) REFERENCES customerType(customer_type_id)
 );
 
 /* 7) CustomerContactNumber */
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS CustomerContactNumber (
   contact_number VARCHAR(10) PRIMARY KEY,
   customer_id INT NOT NULL,
   is_primary BOOLEAN NOT NULL DEFAULT FALSE,
-  CONSTRAINT  FOREIGN KEY (customer_id) REFERENCES Customer(customer_id) ON DELETE CASCADE
+  CONSTRAINT FOREIGN KEY (customer_id) REFERENCES Customer(customer_id) ON DELETE CASCADE
 );
 
 /* 8) CustomerAddress */
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS CustomerAddress (
   city_id INT NOT NULL,
   district VARCHAR(50),
   is_primary BOOLEAN NOT NULL DEFAULT FALSE,
-  CONSTRAINT  FOREIGN KEY (customer_id) REFERENCES Customer(customer_id) ON DELETE CASCADE,
+  CONSTRAINT FOREIGN KEY (customer_id) REFERENCES Customer(customer_id) ON DELETE CASCADE,
   CONSTRAINT FOREIGN KEY (city_id) REFERENCES City(city_id)
 );
 
@@ -81,16 +81,16 @@ CREATE TABLE IF NOT EXISTS Employee (
   auth_id INT NULL,
   role_id INT NOT NULL,
   store_id INT NOT NULL,
-  CONSTRAINT  FOREIGN KEY (auth_id) REFERENCES Auth_users(id),
-  CONSTRAINT  FOREIGN KEY (role_id) REFERENCES Roles(role_id),
-  CONSTRAINT  FOREIGN KEY (store_id) REFERENCES Store(store_id)
+  CONSTRAINT FOREIGN KEY (auth_id) REFERENCES Auth_users(id),
+  CONSTRAINT FOREIGN KEY (role_id) REFERENCES Roles(role_id),
+  CONSTRAINT FOREIGN KEY (store_id) REFERENCES Store(store_id)
 );
 
 /* 10) Product */
 CREATE TABLE IF NOT EXISTS Product (
   product_id INT AUTO_INCREMENT PRIMARY KEY,
   product_name VARCHAR(100) NOT NULL,
-  unit_space DOUBLE NOT NULL,  
+  unit_space DOUBLE NOT NULL,
   unit_price DECIMAL(10,2) NOT NULL,
   product_type VARCHAR(50) NOT NULL
 );
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS `Order` (
   packed_date DATETIME NULL,
   total_quantity INT NOT NULL DEFAULT 0,
   total_price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-  CONSTRAINT  FOREIGN KEY (customer_id) REFERENCES Customer(customer_id),
+  CONSTRAINT FOREIGN KEY (customer_id) REFERENCES Customer(customer_id),
   CONSTRAINT CHECK (required_date >= DATE_ADD(order_date, INTERVAL 7 DAY))
 );
 
@@ -117,11 +117,24 @@ CREATE TABLE IF NOT EXISTS OrderItem (
   quantity INT NOT NULL,
   unit_price DECIMAL(10,2) NOT NULL,
   PRIMARY KEY (order_id, product_id),
-  CONSTRAINT  FOREIGN KEY (order_id) REFERENCES `Order`(order_id) ON DELETE CASCADE,
+  CONSTRAINT FOREIGN KEY (order_id) REFERENCES `Order`(order_id) ON DELETE CASCADE,
   CONSTRAINT FOREIGN KEY (product_id) REFERENCES Product(product_id)
-) ENGINE=InnoDB;
+);
 
-/* 13) Train */
+/* 13) TrainTemplate */
+CREATE TABLE IF NOT EXISTS TrainTemplate (
+  template_id INT AUTO_INCREMENT PRIMARY KEY,
+  train_name VARCHAR(50) NOT NULL,
+  start_station VARCHAR(50) NOT NULL,
+  destination_station VARCHAR(50) NOT NULL,
+  departure_time TIME NOT NULL,
+  arrival_time TIME NOT NULL,
+  capacity_space DOUBLE NOT NULL,
+  status VARCHAR(20) DEFAULT 'on-time',
+  frequency_days VARCHAR(100) NOT NULL DEFAULT "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday"
+);
+
+/* 14) Train */
 CREATE TABLE IF NOT EXISTS Train (
   train_id INT AUTO_INCREMENT PRIMARY KEY,
   train_name VARCHAR(50) NOT NULL,
@@ -129,11 +142,13 @@ CREATE TABLE IF NOT EXISTS Train (
   destination_station VARCHAR(50) NOT NULL,
   departure_date_time DATETIME NOT NULL,
   arrival_date_time DATETIME NOT NULL,
-  `status` VARCHAR(20) DEFAULT 'Scheduled',
-  capacity_space DOUBLE NOT NULL
+  capacity_space DOUBLE NOT NULL,
+  status VARCHAR(20) DEFAULT 'on-time',
+  template_id INT,
+  CONSTRAINT FOREIGN KEY (template_id) REFERENCES TrainTemplate(template_id) ON DELETE SET NULL
 );
 
-/* 14) TrainAllocation */
+/* 15) TrainAllocation */
 CREATE TABLE IF NOT EXISTS TrainAllocation (
   trip_id INT AUTO_INCREMENT PRIMARY KEY,
   train_id INT NOT NULL,
@@ -141,24 +156,24 @@ CREATE TABLE IF NOT EXISTS TrainAllocation (
   product_id INT NOT NULL,
   store_id INT NOT NULL,
   allocated_qty INT NOT NULL,
-  unit_space DOUBLE NOT NULL,            -- copy of product.unit_space at time of allocation
-  total_space_used DOUBLE NOT NULL,      -- = allocated_qty * unit_space
+  unit_space DOUBLE NOT NULL,
+  total_space_used DOUBLE NOT NULL,
   start_date_time DATETIME NOT NULL,
   reached_date_time DATETIME NULL,
   `status` VARCHAR(30) NOT NULL DEFAULT 'Allocated',
-  CONSTRAINT  FOREIGN KEY (train_id) REFERENCES Train(train_id) ON DELETE CASCADE,
-  CONSTRAINT  FOREIGN KEY (order_id, product_id) REFERENCES OrderItem(order_id, product_id) ON DELETE CASCADE,
-  CONSTRAINT  FOREIGN KEY (store_id) REFERENCES Store(store_id)
-) ;
+  CONSTRAINT FOREIGN KEY (train_id) REFERENCES Train(train_id) ON DELETE CASCADE,
+  CONSTRAINT FOREIGN KEY (order_id, product_id) REFERENCES OrderItem(order_id, product_id) ON DELETE CASCADE,
+  CONSTRAINT FOREIGN KEY (store_id) REFERENCES Store(store_id)
+);
 
-/* 15) TruckRoute */
+/* 16) TruckRoute */
 CREATE TABLE IF NOT EXISTS TruckRoute (
   route_id VARCHAR(5) PRIMARY KEY,
   area_name VARCHAR(50) NOT NULL,
   max_delivery_time DOUBLE NOT NULL
 );
 
-/* 16) TruckStopsAt */
+/* 17) TruckStopsAt */
 CREATE TABLE IF NOT EXISTS TruckStopsAt (
   route_id VARCHAR(5) NOT NULL,
   city_id INT NOT NULL,
@@ -168,20 +183,20 @@ CREATE TABLE IF NOT EXISTS TruckStopsAt (
   CONSTRAINT FOREIGN KEY (city_id) REFERENCES City(city_id)
 );
 
-/* 17) Truck */
+/* 18) Truck */
 CREATE TABLE IF NOT EXISTS Truck (
   truck_id INT AUTO_INCREMENT PRIMARY KEY,
   store_id INT NOT NULL,
   plate_number VARCHAR(15) NOT NULL UNIQUE,
   is_available BOOLEAN NOT NULL DEFAULT TRUE,
-  CONSTRAINT  FOREIGN KEY (store_id) REFERENCES Store(store_id)
+  CONSTRAINT FOREIGN KEY (store_id) REFERENCES Store(store_id)
 );
 
-/* 18) TruckDelivery */
+/* 19) TruckDelivery */
 CREATE TABLE IF NOT EXISTS TruckDelivery (
   delivery_id INT AUTO_INCREMENT PRIMARY KEY,
   store_id INT NOT NULL,
-  trip_id INT NULL,            -- optional link to TrainAllocation.trip_id (if goods arrived by train)
+  trip_id INT NULL,
   order_id INT NOT NULL,
   route_id VARCHAR(5) NOT NULL,
   truck_id INT NOT NULL,
@@ -189,23 +204,24 @@ CREATE TABLE IF NOT EXISTS TruckDelivery (
   actual_departure DATETIME NULL,
   actual_arrival DATETIME NULL,
   `status` VARCHAR(30) NOT NULL DEFAULT 'Scheduled',
-  CONSTRAINT  FOREIGN KEY (store_id) REFERENCES Store(store_id),
-  CONSTRAINT  FOREIGN KEY (trip_id) REFERENCES TrainAllocation(trip_id),
-  CONSTRAINT  FOREIGN KEY (order_id) REFERENCES `Order`(order_id),
-  CONSTRAINT  FOREIGN KEY (route_id) REFERENCES TruckRoute(route_id),
-  CONSTRAINT  FOREIGN KEY (truck_id) REFERENCES Truck(truck_id)
+  CONSTRAINT FOREIGN KEY (store_id) REFERENCES Store(store_id),
+  CONSTRAINT FOREIGN KEY (trip_id) REFERENCES TrainAllocation(trip_id),
+  CONSTRAINT FOREIGN KEY (order_id) REFERENCES `Order`(order_id),
+  CONSTRAINT FOREIGN KEY (route_id) REFERENCES TruckRoute(route_id),
+  CONSTRAINT FOREIGN KEY (truck_id) REFERENCES Truck(truck_id)
 );
 
-/* 19) TruckEmployeeAssignment */
+/* 20) TruckEmployeeAssignment */
 CREATE TABLE IF NOT EXISTS TruckEmployeeAssignment (
   assignment_id INT AUTO_INCREMENT PRIMARY KEY,
   employee_id INT NOT NULL,
   truck_delivery_id INT NOT NULL,
   assigned_hours DOUBLE NOT NULL DEFAULT 0,
-  CONSTRAINT  FOREIGN KEY (employee_id) REFERENCES Employee(employee_id),
-  CONSTRAINT  FOREIGN KEY (truck_delivery_id) REFERENCES TruckDelivery(delivery_id) ON DELETE CASCADE
+  CONSTRAINT FOREIGN KEY (employee_id) REFERENCES Employee(employee_id),
+  CONSTRAINT FOREIGN KEY (truck_delivery_id) REFERENCES TruckDelivery(delivery_id) ON DELETE CASCADE
 );
 
+/* Indexes */
 CREATE INDEX idx_order_customer ON `Order`(customer_id);
 CREATE INDEX idx_order_orderdate ON `Order`(order_date);
 CREATE INDEX idx_orderitem_product ON OrderItem(product_id);
@@ -213,6 +229,72 @@ CREATE INDEX idx_trainalloc_train ON TrainAllocation(train_id);
 CREATE INDEX idx_trainalloc_order ON TrainAllocation(order_id);
 CREATE INDEX idx_truckdelivery_truck ON TruckDelivery(truck_id);
 CREATE INDEX idx_truckdelivery_route ON TruckDelivery(route_id);
-CREATE INDEX idx_employee_role ON Employee(role_id);
-CREATE INDEX idx_customeraddress_city ON CustomerAddress(city_id);
+CREATE INDEX  idx_train_template_day ON Train (template_id, departure_date_time);
 
+
+SET GLOBAL event_scheduler = ON;
+
+SET GLOBAL event_scheduler = ON;
+
+DELIMITER //
+CREATE EVENT IF NOT EXISTS generate_trains_rolling_14d
+ON SCHEDULE EVERY 1 DAY
+STARTS TIMESTAMP(CURRENT_DATE, '00:00:00') + INTERVAL 1 DAY
+DO
+BEGIN
+  CALL sp_populate_trains_for_next_n_days(14);
+END //
+DELIMITER ;
+
+
+DELIMITER //
+CREATE PROCEDURE IF NOT EXISTS sp_populate_trains_for_next_n_days(IN days_ahead INT)
+BEGIN
+  DECLARE d INT DEFAULT 0;
+  DECLARE target_date DATE;
+
+  WHILE d < days_ahead DO
+    SET target_date = DATE_ADD(CURDATE(), INTERVAL d DAY);
+
+    INSERT INTO Train (
+      train_name,
+      start_station,
+      destination_station,
+      departure_date_time,
+      arrival_date_time,
+      capacity_space,
+      status,
+      template_id
+    )
+    SELECT
+      t.train_name,
+      t.start_station,
+      t.destination_station,
+      CONCAT(target_date, ' ', t.departure_time),
+      CONCAT(target_date, ' ', t.arrival_time),
+      t.capacity_space,
+      t.status,
+      t.template_id
+    FROM TrainTemplate t
+    JOIN (
+      SELECT 0 AS offset,'Monday' AS day_name UNION ALL
+      SELECT 1,'Tuesday' UNION ALL
+      SELECT 2,'Wednesday' UNION ALL
+      SELECT 3,'Thursday' UNION ALL
+      SELECT 4,'Friday' UNION ALL
+      SELECT 5,'Saturday' UNION ALL
+      SELECT 6,'Sunday'
+    ) days
+      ON days.offset = WEEKDAY(target_date)
+     AND FIND_IN_SET(days.day_name, t.frequency_days) > 0
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM Train tr
+      WHERE tr.template_id = t.template_id
+        AND DATE(tr.departure_date_time) = target_date
+    );
+
+    SET d = d + 1;
+  END WHILE;
+END //
+DELIMITER ;
