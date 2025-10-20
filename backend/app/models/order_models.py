@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List,Optional
 
 class OrderItemCreate(BaseModel):
     product_id: int
@@ -13,6 +13,7 @@ class OrderCreate(BaseModel):
     status: str
     total_quantity: int
     total_price: float
+    total_space: float
     items: List[OrderItemCreate]
 
 class OrderItemResponse(BaseModel):
@@ -28,4 +29,5 @@ class OrderResponse(BaseModel):
     status: str
     total_quantity: int
     total_price: float
+    total_space: float
     items: List[OrderItemResponse]

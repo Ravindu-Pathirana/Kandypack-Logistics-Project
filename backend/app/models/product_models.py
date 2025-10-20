@@ -1,6 +1,11 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 
+class Product(BaseModel):
+    product_id: int
+    product_name: str
+    unit_price: float
+
 class ProductCreate(BaseModel):
     product_name: str = Field(..., max_length=20)
     unit_space: float = Field(..., gt=0)

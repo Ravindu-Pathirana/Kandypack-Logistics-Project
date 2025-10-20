@@ -11,6 +11,7 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 def create_order(order: OrderCreate):
     return orders_crud.create_order(order)
 
+
 @router.get("/", response_model=List[dict])
 def list_orders():
     return orders_crud.get_orders()
@@ -35,7 +36,8 @@ def get_orders():
             o.order_date,
             o.required_date,
             o.status,
-            SUM(oi.quantity * oi.unit_price) AS total_price
+            SUM(oi.quantity * oi.unit_price) AS total_price,
+            o.total_space,
         FROM `order` o
         JOIN customer c ON o.customer_id = c.customer_id
         LEFT JOIN orderitem oi ON o.order_id = oi.order_id
@@ -46,3 +48,23 @@ def get_orders():
     cursor.close()
     conn.close()
     return rows
+
+@router.get("/{order_id}/items")
+def get_order_items(order_id: int):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    query = """
+        SELECT oi.order_id, oi.product_id, oi.quantity, oi.unit_price, p.product_name, p.unit_space
+        FROM orderitem oi
+        JOIN product p ON oi.product_id = p.product_id
+        WHERE oi.order_id = %s
+    """
+
+    cursor.execute(query, (order_id,))
+    items = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return items
