@@ -36,10 +36,8 @@ const ManageStores = ({ isOpen, onClose }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [newStore, setNewStore] = useState({
     store_name: "",
-    address: "",
-    city_id: "",
     contact_number: "",
-    email: "",
+    city_id: "", // Store as string for UI consistency
   });
 
   // Helper function to get auth headers
@@ -79,6 +77,8 @@ const ManageStores = ({ isOpen, onClose }) => {
       const storesData = await storesRes.json();
       const citiesData = await citiesRes.json();
 
+      console.log("Fetched cities:", citiesData); // Debug log
+
       setStores(Array.isArray(storesData) ? storesData : []);
       setCities(Array.isArray(citiesData) ? citiesData : []);
       setError(null);
@@ -101,11 +101,16 @@ const ManageStores = ({ isOpen, onClose }) => {
   const handleAddStore = async () => {
     if (
       !newStore.store_name.trim() ||
-      !newStore.address.trim() ||
-      !newStore.city_id ||
-      !newStore.contact_number.trim()
+      !newStore.contact_number.trim() ||
+      !newStore.city_id
     ) {
-      alert("Please fill in all required fields");
+      setError("Please fill in all required fields, including city");
+      return;
+    }
+
+    const cityIdNum = parseInt(newStore.city_id, 10);
+    if (isNaN(cityIdNum) || cityIdNum <= 0) {
+      setError("Please select a valid city");
       return;
     }
 
@@ -117,10 +122,8 @@ const ManageStores = ({ isOpen, onClose }) => {
         headers,
         body: JSON.stringify({
           store_name: newStore.store_name,
-          address: newStore.address,
-          city_id: parseInt(newStore.city_id),
           contact_number: newStore.contact_number,
-          email: newStore.email || null,
+          city_id: cityIdNum, // Convert to integer for backend
         }),
       });
 
@@ -133,10 +136,8 @@ const ManageStores = ({ isOpen, onClose }) => {
       setStores([...stores, result]);
       setNewStore({
         store_name: "",
-        address: "",
-        city_id: "",
         contact_number: "",
-        email: "",
+        city_id: "",
       });
       setShowAddModal(false);
       setError(null);
@@ -165,7 +166,7 @@ const ManageStores = ({ isOpen, onClose }) => {
         throw new Error(errorData.detail || "Failed to delete store");
       }
 
-      setStores(stores.filter((s) => s.id !== storeId));
+      setStores(stores.filter((s) => s.store_id !== storeId));
       setError(null);
     } catch (err) {
       console.error("Error deleting store:", err);
@@ -184,7 +185,6 @@ const ManageStores = ({ isOpen, onClose }) => {
   // Filter stores based on search
   const filteredStores = stores.filter((store) =>
     store.store_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    store.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     store.contact_number?.includes(searchTerm)
   );
 
@@ -251,24 +251,20 @@ const ManageStores = ({ isOpen, onClose }) => {
             <div className="space-y-2">
               {filteredStores.map((store) => (
                 <div
-                  key={store.id}
+                  key={store.store_id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <div className="space-y-1 flex-1 min-w-0">
                     <p className="font-medium">{store.store_name}</p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {store.address}
-                    </p>
                     <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
                       <Badge variant="outline">
                         {getCityName(store.city_id)}
                       </Badge>
                       <span>{store.contact_number}</span>
-                      {store.email && <span>{store.email}</span>}
                     </div>
                   </div>
                   <button
-                    onClick={() => handleDeleteStore(store.id)}
+                    onClick={() => handleDeleteStore(store.store_id)}
                     className="p-2 hover:bg-red-100 rounded-md text-red-600 transition-colors flex-shrink-0"
                     disabled={loading}
                   >
@@ -298,12 +294,12 @@ const ManageStores = ({ isOpen, onClose }) => {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Address *</label>
+                <label className="text-sm font-medium">Contact Number *</label>
                 <Input
-                  placeholder="e.g., 123 Main Street"
-                  value={newStore.address}
+                  placeholder="e.g., 0123456789"
+                  value={newStore.contact_number}
                   onChange={(e) =>
-                    setNewStore({ ...newStore, address: e.target.value })
+                    setNewStore({ ...newStore, contact_number: e.target.value })
                   }
                 />
               </div>
@@ -312,9 +308,10 @@ const ManageStores = ({ isOpen, onClose }) => {
                 <select
                   className="w-full border rounded-md px-3 py-2"
                   value={newStore.city_id}
-                  onChange={(e) =>
-                    setNewStore({ ...newStore, city_id: e.target.value })
-                  }
+                  onChange={(e) => {
+                    console.log("Selected city_id:", e.target.value); // Debug log
+                    setNewStore({ ...newStore, city_id: e.target.value });
+                  }}
                 >
                   <option value="">Select a city</option>
                   {cities.map((city) => (
@@ -323,27 +320,6 @@ const ManageStores = ({ isOpen, onClose }) => {
                     </option>
                   ))}
                 </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Contact Number *</label>
-                <Input
-                  placeholder="e.g., +94701234567"
-                  value={newStore.contact_number}
-                  onChange={(e) =>
-                    setNewStore({ ...newStore, contact_number: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Email</label>
-                <Input
-                  type="email"
-                  placeholder="e.g., store@example.com"
-                  value={newStore.email}
-                  onChange={(e) =>
-                    setNewStore({ ...newStore, email: e.target.value })
-                  }
-                />
               </div>
             </div>
             <DialogFooter>

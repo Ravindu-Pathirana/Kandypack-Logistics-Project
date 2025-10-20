@@ -23,12 +23,13 @@ app.include_router(drivers.router, tags=["drivers"])
 app.include_router(reports.router, tags=["reports"])
 app.include_router(trucks.router,tags=["trucks"])
 app.include_router(stores.router,tags=["stores"])
-app.include_router(cities.router,tags=["products"])
+app.include_router(cities.router,tags=["cities"])
 app.include_router(customers1.router,tags=["customers"])
-app.include_router(orders.router)
-app.include_router(customers.router)
-app.include_router(trains.router)
-app.include_router(customertypes.router)
+app.include_router(orders.router,tags=["orders"])
+app.include_router(customers.router, tags=["customers1"])
+app.include_router(trains.router, tags=["trains"])
+app.include_router(products.router, tags=["products"])
+app.include_router(customertypes.router, tags=["customertypes"])
 
 
 app.add_middleware(
