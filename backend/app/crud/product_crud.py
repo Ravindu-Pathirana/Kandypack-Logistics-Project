@@ -3,6 +3,25 @@ from app.core.database import get_db
 from app.models.product_models import ProductCreate
 from app.models.product_type_models import ProductTypeCreate
 from mysql.connector.errors import Error as MySQLError
+import mysql.connector, os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def get_products():
+    conn = mysql.connector.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        user=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASS", ""),
+        database=os.getenv("DB_NAME", "kandypacklogistics"),
+    )
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT product_id, product_name, unit_price FROM Product")
+    products = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return products
 
 def get_product_types():
     conn = get_db()

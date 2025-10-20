@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from app.crud.product_crud import get_product_types, create_product_type, get_products, create_product, delete_product
 from app.core.security import get_current_user
 from app.models.product_type_models import ProductTypeCreate, ProductTypeResponse
 from app.models.product_models import ProductCreate, ProductResponse
+import mysql.connector,os
+from app.crud import product_crud
 
 router = APIRouter()
+
 
 @router.get("/product-types", response_model=list[ProductTypeResponse])
 def get_product_types_endpoint(current_user=Depends(get_current_user)):
@@ -39,4 +42,12 @@ def delete_product_endpoint(product_id: int, current_user=Depends(get_current_us
     """
     Deletes a product by ID. Only accessible to admin users.
     """
+<<<<<<< HEAD
     return delete_product(product_id, current_user.role)
+=======
+    return delete_product(product_id, current_user.role, current_user.store_id)
+
+@router.get("/")
+def list_products():
+    return product_crud.get_products()
+>>>>>>> 9e86c40 (WIP: local changes before merge)
