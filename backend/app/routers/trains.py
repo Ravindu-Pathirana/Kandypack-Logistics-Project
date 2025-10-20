@@ -42,14 +42,18 @@ def add_train_template(tmpl: dict):
         # normalize times to HH:MM:SS
         for k in ("departure_time", "arrival_time"):
             v = str(tmpl.get(k, "")).strip()
-            if len(v) == 5:
+            if len(v) == 5:  # e.g. "08:00"
                 v += ":00"
             tmpl[k] = v
 
         # frequency_days array -> csv; default full week
         freq = tmpl.get("frequency_days")
         if isinstance(freq, list):
-            tmpl["frequency_days"] = ",".join(freq)
+            if len(freq) == 0:
+                # 🔑 Treat empty list as "daily train" (all days)
+                tmpl["frequency_days"] = "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday"
+            else:
+                tmpl["frequency_days"] = ",".join(freq)
         elif not freq:
             tmpl["frequency_days"] = "Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday"
 

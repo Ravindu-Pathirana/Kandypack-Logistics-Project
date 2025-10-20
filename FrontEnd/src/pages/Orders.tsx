@@ -159,19 +159,59 @@ export default function Orders() {
       </div>
 
       {/* Orders List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {orders.map((o) => (
-          <Card key={o.order_id}>
-            <CardContent className="p-4">
-              <p className="font-bold">Order #{o.order_id}</p>
-              <p>Customer: {o.customer_id}</p>
-              <p>Status: {o.status}</p>
-              <p>Total Qty: {o.total_quantity}</p>
-              <p>Total Price: {o.total_price}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {orders.map((o) => {
+        const customer = customers.find((c) => c.customer_id === o.customer_id)
+        return (
+          <Card key={o.order_id} className="shadow-md border rounded-xl">
+            <CardContent className="p-6 space-y-3">
+              {/* Header */}
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-bold">ORD-{o.order_id.toString().padStart(3, "0")}</h2>
+                <span
+                  className={`px-3 py-1 text-sm rounded-full ${
+                    o.status === "Delivered"
+                      ? "bg-green-100 text-green-700"
+                      : o.status === "In Transit"
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-yellow-100 text-yellow-700"
+                  }`}
+                >
+                  {o.status}
+                </span>
+              </div>
+
+              {/* Customer */}
+              <p className="text-gray-700 font-medium">
+                {customer ? customer.customer_name : "Unknown Customer"}
+              </p>
+
+              {/* Destination, Value, Items */}
+              <div className="text-sm space-y-1">
+                <p className="flex items-center gap-2">
+                  📍 {customer ? customer.customer_name : "N/A"}
+                </p>
+                <p className="flex items-center gap-2">
+                  📦 {o.total_quantity} items
+                </p>
+                <p className="flex items-center gap-2">
+                  💰 Value: <span className="font-semibold">Rs. {o.total_price.toLocaleString()}</span>
+                </p>
+                <p className="flex items-center gap-2">
+                  📅 {new Date(o.order_date).toLocaleDateString()}
+                </p>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="flex justify-between pt-3">
+                <Button variant="outline">View Details</Button>
+                <Button>Update Status</Button>
+              </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+        )
+      })}
+    </div>
 
       {/* New Order Dialog */}
       <Dialog open={isNewOrderOpen} onOpenChange={setIsNewOrderOpen}>

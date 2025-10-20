@@ -18,8 +18,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login/")
 # ----- MODELS -----
 class TokenData(BaseModel):
     username: str
-    role: str | None = None
-    store_id: int | None = None
+    role: str 
+    store_id: int 
 
 
 # ----- PASSWORD HELPERS -----
@@ -39,6 +39,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     )
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
 
 
 # ----- TOKEN VALIDATION -----
