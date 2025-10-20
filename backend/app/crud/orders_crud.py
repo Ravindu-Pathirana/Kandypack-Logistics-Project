@@ -52,17 +52,30 @@ def create_order(order: OrderCreate):
         conn.close()
 
 
+
 def get_orders():
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
-    try:
-        cursor.execute("SELECT * FROM `Order` ORDER BY placed_date DESC")
-        orders = cursor.fetchall()
 
-        for o in orders:
-            cursor.execute("SELECT product_id, quantity, unit_price FROM OrderItem WHERE order_id = %s", (o["order_id"],))
-            o["items"] = cursor.fetchall()
-        return orders
-    finally:
-        cursor.close()
-        conn.close()
+    query = """
+        SELECT 
+            o.order_id,
+            o.customer_id,
+            c.customer_name,
+            o.order_date,
+            o.required_date,
+            o.status,
+            COALESCE(SUM(oi.quantity), 0) AS total_quantity,
+            COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS total_price
+        FROM `order` o
+        JOIN customer c ON o.customer_id = c.customer_id
+        LEFT JOIN orderitem oi ON o.order_id = oi.order_id
+        GROUP BY o.order_id, o.customer_id, c.customer_name, o.order_date, o.required_date, o.status
+        ORDER BY o.order_date DESC
+    """
+    cursor.execute(query)
+    orders = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+    return orders

@@ -3,6 +3,7 @@ from datetime import datetime
 from app.core.database import get_db
 from typing import Optional
 
+
 def create_auth_user(conn, username: str, email: str, password_hash: str) -> int:
     cursor = conn.cursor()
     hashed_password = hash_password(password_hash)

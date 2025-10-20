@@ -8,6 +8,7 @@ from app.core import security
 from app.models.auth_models import TokenData
 router = APIRouter()
 
+
 @router.post("/employees/create")
 def create_employee(emp: EmployeeCreate):
     conn = get_db()
