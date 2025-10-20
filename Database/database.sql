@@ -604,6 +604,23 @@ CREATE TABLE `TruckRoute` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+
+DROP TABLE IF EXISTS TruckRoute;
+
+CREATE TABLE TruckRoute (
+  route_id VARCHAR(10) PRIMARY KEY,
+  route_name VARCHAR(100) NOT NULL,
+  area VARCHAR(100) NOT NULL,
+  max_delivery_time INT NOT NULL COMMENT 'in hours',
+  coverage TEXT,
+  active_orders INT DEFAULT 0,
+  assigned_trucks INT DEFAULT 0,
+  assigned_drivers INT DEFAULT 0,
+  status ENUM('Active', 'Maintenance', 'Suspended') DEFAULT 'Active',
+  last_delivery DATETIME DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
 --
 -- Dumping data for table `TruckRoute`
 --
@@ -639,6 +656,8 @@ LOCK TABLES `TruckStopsAt` WRITE;
 /*!40000 ALTER TABLE `TruckStopsAt` DISABLE KEYS */;
 /*!40000 ALTER TABLE `TruckStopsAt` ENABLE KEYS */;
 UNLOCK TABLES;
+
+
 <<<<<<< Updated upstream
 >>>>>>> Stashed changes
 =======

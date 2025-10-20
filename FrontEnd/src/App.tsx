@@ -12,6 +12,7 @@ import Drivers from "./pages/Drivers";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 
+
 const queryClient = new QueryClient();
 
 const App = () => (
