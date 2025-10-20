@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -20,15 +21,16 @@ import {
   Package,
   Plus,
   Search,
-  Trash2,
   Loader2,
   X,
   Filter,
+  ArrowLeft,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 const ManageProducts = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -185,33 +187,7 @@ const ManageProducts = ({ isOpen, onClose }) => {
     }
   };
 
-  // Delete product
-  const handleDeleteProduct = async (productId) => {
-    if (!window.confirm("Are you sure you want to delete this product?"))
-      return;
-
-    try {
-      setLoading(true);
-      const headers = getAuthHeaders();
-      const response = await fetch(`${API_BASE}/products/${productId}`, {
-        method: "DELETE",
-        headers,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to delete product");
-      }
-
-      setProducts(products.filter((p) => p.product_id !== productId));
-      setError(null);
-    } catch (err) {
-      console.error("Error deleting product:", err);
-      setError(err.message || "Error deleting product");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Note: Delete action removed per request
 
   // Filter and search products
   const filteredProducts = products.filter((product) => {
@@ -231,12 +207,18 @@ const ManageProducts = ({ isOpen, onClose }) => {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Manage Products
-            </CardTitle>
-            <CardDescription>Add and manage inventory products</CardDescription>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" onClick={() => navigate("/")} className="h-8 px-2">
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Manage Products
+              </CardTitle>
+              <CardDescription>Add and manage inventory products</CardDescription>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -341,9 +323,6 @@ const ManageProducts = ({ isOpen, onClose }) => {
                     <th className="px-4 py-3 text-right font-medium">
                       Unit Price
                     </th>
-                    <th className="px-4 py-3 text-center font-medium">
-                      Actions
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -365,19 +344,6 @@ const ManageProducts = ({ isOpen, onClose }) => {
                       </td>
                       <td className="px-4 py-3 text-right">
                         Rs. {parseFloat(product.unit_price).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1 justify-center">
-                          <button
-                            onClick={() =>
-                              handleDeleteProduct(product.product_id)
-                            }
-                            className="p-2 hover:bg-red-100 rounded-md text-red-600 transition-colors"
-                            disabled={loading}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
                       </td>
                     </tr>
                   ))}

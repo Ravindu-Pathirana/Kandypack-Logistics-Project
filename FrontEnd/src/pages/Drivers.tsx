@@ -186,15 +186,14 @@ const Drivers = () => {
 
       setSummary(sumData);
 
-// Map drivers - drivers endpoint only has basic info
+// Map drivers - align to API: employee_id, employee_name, total_hours_week, official_contact_number, next_available_time
 const mappedDrivers = Array.isArray(drvData)
   ? drvData.map((d) => ({
       id: d.employee_id,
-      status: d.status || "Available",
-      consecutiveDeliveries: d.consecutive_deliveries || 0,
-      nextAvailableTime: d.next_available_time || "N/A",
-      lastDeliveryTime: d.last_delivery_time || "N/A",
+      name: d.employee_name,
       weeklyHours: d.total_hours_week || 0,
+      phone: d.official_contact_number || "N/A",
+      nextAvailableTime: d.next_available_time || "N/A",
       maxWeeklyHours: sumData.drivers_weekly_limit || 40,
     }))
   : [];
@@ -748,37 +747,40 @@ const mappedManagers = Array.isArray(mgrData)
         <thead>
           <tr className="border-b bg-muted/50">
             <th className="px-4 py-3 text-left font-medium">Employee ID</th>
-            <th className="px-4 py-3 text-left font-medium">Status</th>
-            <th className="px-4 py-3 text-left font-medium">Consecutive Deliveries</th>
+            <th className="px-4 py-3 text-left font-medium">Name</th>
+            <th className="px-4 py-3 text-left font-medium">Weekly Hours</th>
+            <th className="px-4 py-3 text-left font-medium">Phone</th>
             <th className="px-4 py-3 text-left font-medium">Next Available</th>
-            <th className="px-4 py-3 text-left font-medium">Last Delivery</th>
             <th className="px-4 py-3 text-center font-medium">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {filterDataBySearch(driversData, driverFilters.search).length === 0 ? (
+          {driversData.filter(d => {
+            if (!driverFilters.search) return true;
+            const search = driverFilters.search.toLowerCase();
+            return d.id.toString().toLowerCase().includes(search) || (d.name || "").toLowerCase().includes(search);
+          }).length === 0 ? (
             <tr>
               <td colSpan="6" className="px-4 py-8 text-center text-muted-foreground">
                 No drivers found matching your filters
               </td>
             </tr>
           ) : (
-            filterDataBySearch(driversData, driverFilters.search).map((d) => {
+            driversData.filter(d => {
+              if (!driverFilters.search) return true;
+              const search = driverFilters.search.toLowerCase();
+              return d.id.toString().toLowerCase().includes(search) || (d.name || "").toLowerCase().includes(search);
+            }).map((d) => {
               const nextAvailableDate = d.nextAvailableTime !== "N/A"
                 ? new Date(d.nextAvailableTime).toLocaleString()
-                : "N/A";
-              const lastDeliveryDate = d.lastDeliveryTime && d.lastDeliveryTime !== "N/A"
-                ? new Date(d.lastDeliveryTime).toLocaleString()
                 : "N/A";
               return (
                 <tr key={d.id} className="border-b hover:bg-muted/50 transition-colors">
                   <td className="px-4 py-3 font-medium">{d.id}</td>
-                  <td className="px-4 py-3">
-                    <Badge className={getStatusColor(d.status)}>{d.status}</Badge>
-                  </td>
-                  <td className="px-4 py-3">{d.consecutiveDeliveries}</td>
+                  <td className="px-4 py-3">{d.name}</td>
+                  <td className="px-4 py-3">{d.weeklyHours}h</td>
+                  <td className="px-4 py-3 text-muted-foreground">{d.phone}</td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">{nextAvailableDate}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{lastDeliveryDate}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-center">
                       <Button 

@@ -17,6 +17,7 @@ import ManageCitiesPage from "./pages/ManageCitiesPage";
 import ManageStoresPage from "./pages/ManageStoresPage";
 import ManageProductsPage from "./pages/ManageProductsPage";
 import ManageTrucksPage from "./pages/ManageTrucksPage";
+import RouteLoader from "./components/RouteLoader";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <RouteLoader />
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />

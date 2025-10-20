@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -23,11 +24,13 @@ import {
   Trash2,
   Loader2,
   X,
+  ArrowLeft,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 const ManageStores = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
   const [stores, setStores] = useState([]);
   const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -193,20 +196,21 @@ const ManageStores = ({ isOpen, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Manage Stores
-            </CardTitle>
-            <CardDescription>Add and manage delivery stores</CardDescription>
+        <CardHeader className="pb-4 border-b">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" onClick={() => navigate("/")} className="h-8 px-2">
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+            <div className="text-center flex-1">
+              <CardTitle className="flex items-center justify-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Manage Stores
+              </CardTitle>
+              <CardDescription>Add and manage delivery stores</CardDescription>
+            </div>
+            <div className="w-[72px]" />
           </div>
-          <button
-            onClick={onClose}
-            className="hover:opacity-70 transition-opacity"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </CardHeader>
 
         <CardContent className="pt-6 space-y-6">

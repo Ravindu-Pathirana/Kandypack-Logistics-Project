@@ -39,4 +39,4 @@ def delete_product_endpoint(product_id: int, current_user=Depends(get_current_us
     """
     Deletes a product by ID. Only accessible to admin users.
     """
-    return delete_product(product_id, current_user.role, current_user.store_id)
+    return delete_product(product_id, current_user.role)
