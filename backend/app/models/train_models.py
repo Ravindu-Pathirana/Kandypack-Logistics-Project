@@ -3,6 +3,7 @@ from datetime import time, datetime
 from enum import Enum
 from typing import Optional, List
 
+
 # --- Enums ---
 class TrainStatus(str, Enum):
     ON_TIME = "on-time"

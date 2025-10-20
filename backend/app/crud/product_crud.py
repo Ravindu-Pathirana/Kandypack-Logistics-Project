@@ -3,6 +3,25 @@ from app.core.database import get_db
 from app.models.product_models import ProductCreate
 from app.models.product_type_models import ProductTypeCreate
 from mysql.connector.errors import Error as MySQLError
+import mysql.connector, os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def get_products():
+    conn = mysql.connector.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        user=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASS", ""),
+        database=os.getenv("DB_NAME", "kandypacklogistics"),
+    )
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT product_id, product_name, unit_price FROM Product")
+    products = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return products
 
 def get_product_types():
     conn = get_db()
@@ -48,6 +67,7 @@ def create_product_type(product_type: ProductTypeCreate, user_role: str):
     finally:
         cursor.close()
         conn.close()
+
 
 def get_products(role: str, store_id: int):
     conn = get_db()
@@ -132,7 +152,7 @@ def create_product(product: ProductCreate, user_role: str):
         conn.close()
 
 
-def delete_product(product_id: int, user_role: str, store_id: int):
+def delete_product(product_id: int, user_role: str):
     if user_role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can delete products")
 
@@ -140,9 +160,9 @@ def delete_product(product_id: int, user_role: str, store_id: int):
     cursor = conn.cursor(dictionary=True)
     try:
         # Check if product exists and belongs to the user's store
-        cursor.execute("SELECT product_id FROM product WHERE product_id = %s AND store_id = %s", (product_id, store_id))
+        cursor.execute("SELECT product_id FROM product WHERE product_id = %s ", (product_id, ))
         if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Product not found or does not belong to your store")
+            raise HTTPException(status_code=404, detail="Product not found ")
 
         query = "DELETE FROM product WHERE product_id = %s"
         cursor.execute(query, (product_id,))
@@ -153,7 +173,7 @@ def delete_product(product_id: int, user_role: str, store_id: int):
         return {"detail": "Product deleted successfully"}
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail="Database error")
+        raise HTTPException(status_code=500, detail=f"{e}")
     finally:
         cursor.close()
         conn.close()

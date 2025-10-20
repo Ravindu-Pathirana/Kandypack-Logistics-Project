@@ -3,6 +3,7 @@ from app.crud import trains_crud
 
 router = APIRouter(prefix="/trains", tags=["trains"])
 
+
 @router.get("/")
 def list_trains():
     try:
@@ -106,6 +107,17 @@ def cancel_train(train_id: int):
         raise
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e))
+
+@router.get("/{train_id}/allocations")
+def get_train_allocations(train_id: int):
+    """
+    Get all allocation details for a specific train.
+    Returns detailed information about products allocated to this train.
+    """
+    try:
+        return trains_crud.get_train_allocations(train_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/generate")
 def generate_now(days: int = Query(14, ge=1, le=60)):

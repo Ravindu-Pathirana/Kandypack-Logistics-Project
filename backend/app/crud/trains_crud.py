@@ -144,6 +144,47 @@ def cancel_train(train_id: int) -> bool:
         cursor.close()
         db.close()
 
+def get_train_allocations(train_id: int):
+    """
+    Get detailed allocation information for a specific train.
+    Returns all products allocated to this train with their details.
+    """
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    try:
+        query = """
+        SELECT 
+            ta.trip_id as allocation_id,
+            ta.train_id,
+            ta.order_id,
+            ta.product_id,
+            ta.store_id,
+            ta.allocated_qty,
+            ta.unit_space,
+            ta.start_date_time,
+            ta.status,
+            p.product_name,
+            s.store_name,
+            c.customer_name,
+            o.order_date,
+            o.required_date,
+            o.status as order_status,
+            ta.total_space_used
+        FROM trainallocation ta
+        JOIN product p ON ta.product_id = p.product_id
+        JOIN store s ON ta.store_id = s.store_id
+        JOIN `order` o ON ta.order_id = o.order_id
+        JOIN customer c ON o.customer_id = c.customer_id
+        WHERE ta.train_id = %s
+        ORDER BY ta.start_date_time DESC
+        """
+        cursor.execute(query, (train_id,))
+        rows = cursor.fetchall()
+        return rows
+    finally:
+        cursor.close()
+        db.close()
+
 def generate_horizon(days_ahead: int = 14) -> int:
     """
     Call the stored procedure to populate Train from TrainTemplate.

@@ -118,3 +118,38 @@ def create_customer(customer: CustomerCreate, user_role: str):
     finally:
         cursor.close()
         conn.close()
+
+def delete_customer(customer_id: int, user_role: str):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Validate user role (only admins can delete customers)
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can delete customers")
+    
+    try:
+        # Check if customer exists
+        cursor.execute("SELECT customer_id FROM customer WHERE customer_id = %s", (customer_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Customer not found")
+        
+        # Check if customer has any orders
+        cursor.execute("SELECT COUNT(*) as order_count FROM `order` WHERE customer_id = %s", (customer_id,))
+        result = cursor.fetchone()
+        if result['order_count'] > 0:
+            raise HTTPException(status_code=400, detail="Cannot delete customer with existing orders")
+        
+        # Delete customer
+        query = "DELETE FROM customer WHERE customer_id = %s"
+        cursor.execute(query, (customer_id,))
+        conn.commit()
+        
+        return {"message": "Customer deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
