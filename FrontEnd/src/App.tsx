@@ -7,6 +7,7 @@ import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Orders from "./pages/Orders";
 import TrainSchedule from "./pages/TrainSchedule";
+import TrainAllocation from "./pages/TrainAllocation";
 import RoutesPage from "./pages/Routes";
 import Drivers from "./pages/Drivers";
 import Reports from "./pages/Reports";
@@ -17,6 +18,7 @@ import ManageCitiesPage from "./pages/ManageCitiesPage";
 import ManageStoresPage from "./pages/ManageStoresPage";
 import ManageProductsPage from "./pages/ManageProductsPage";
 import ManageTrucksPage from "./pages/ManageTrucksPage";
+import CustomerManagement from "./pages/CustomerManagement";
 import RouteLoader from "./components/RouteLoader";
 
 const queryClient = new QueryClient();
@@ -39,12 +41,12 @@ const App = () => (
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
-
           {/* Protected routes */}
           <Route element={<PrivateRoute />}>
             <Route path="/" element={<Layout />}>
               <Route index element={<Dashboard />} />
               <Route path="orders" element={<Orders />} />
+              <Route path="/orders/:orderId/allocate" element={<TrainAllocation />} />
               <Route path="trains" element={<TrainSchedule />} />
               <Route path="routes" element={<RoutesPage />} />
               <Route path="drivers" element={<Drivers />} />
@@ -54,6 +56,7 @@ const App = () => (
               <Route path="manage/stores" element={<ManageStoresPage />} />
               <Route path="manage/products" element={<ManageProductsPage />} />
               <Route path="manage/trucks" element={<ManageTrucksPage />} />
+              <Route path="manage/customers" element={<CustomerManagement />} />
               <Route path="employees/:id" element={<EmployeeDetails />} />
             </Route>
           </Route>

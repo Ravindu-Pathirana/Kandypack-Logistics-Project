@@ -9,7 +9,13 @@ import {
   Route,
   Home,
   Menu,
-  X
+  X,
+  Settings,
+  Building2,
+  MapPin,
+  ShoppingCart,
+  Wrench,
+  Plus
 } from "lucide-react";
 import { useState, useEffect } from "react";
 

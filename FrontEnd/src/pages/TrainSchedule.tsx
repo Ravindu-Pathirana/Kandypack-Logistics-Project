@@ -3,7 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Train, Clock, MapPin, Package, Plus, AlertTriangle, CheckCircle } from "lucide-react";
+import { Train, Clock, MapPin, Package, Plus, AlertTriangle, CheckCircle, Eye, Loader2 } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -88,6 +96,10 @@ const TrainSchedule = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [allocationDetails, setAllocationDetails] = useState([]);
+  const [selectedTrainId, setSelectedTrainId] = useState(null);
+  const [allocationLoading, setAllocationLoading] = useState(false);
+  const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
 
   const trainForm = useForm<z.infer<typeof trainSchema>>({
     resolver: zodResolver(trainSchema),
@@ -172,6 +184,23 @@ const TrainSchedule = () => {
   const getStatusColor = (status: string): "destructive" | "default" | "outline" | "secondary" =>
     (status.toLowerCase() === "on-time" || status === "On Time") ? "default" : "destructive";
   const getStatusIcon = (status: string) => (status.toLowerCase() === "on-time" || status === "On Time" ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />);
+
+  const fetchTrainAllocations = async (trainId: number) => {
+    setAllocationLoading(true);
+    try {
+      const response = await fetch(`http://localhost:8000/trains/${trainId}/allocations`);
+      if (!response.ok) throw new Error("Failed to fetch allocation details");
+      const data = await response.json();
+      setAllocationDetails(data);
+      setSelectedTrainId(trainId);
+      setIsAllocationDialogOpen(true);
+    } catch (err) {
+      toast.error("Failed to load allocation details");
+      console.error("Error fetching allocations:", err);
+    } finally {
+      setAllocationLoading(false);
+    }
+  };
 
   const totalCapacity = trainRoutes.reduce((sum, train) => sum + train.capacity, 0);
   const totalUtilized = trainRoutes.reduce((sum, train) => sum + train.utilized, 0);
@@ -515,6 +544,21 @@ const TrainSchedule = () => {
                               </div>
                               <Progress value={utilizationPercentage} className="h-2" />
                             </div>
+                            <div className="pt-3 border-t">
+                              <Button
+                                size="sm"
+                                className="w-full bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 rounded-lg shadow-sm transition"
+                                onClick={() => fetchTrainAllocations(train.train_id)}
+                                disabled={allocationLoading}
+                              >
+                                {allocationLoading ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : (
+                                  <Eye className="h-4 w-4 mr-2" />
+                                )}
+                                View Details
+                              </Button>
+                            </div>
                           </CardContent>
                         </Card>
                       );
@@ -526,6 +570,106 @@ const TrainSchedule = () => {
           </Accordion>
         </CardContent>
       </Card>
+
+      {/* Allocation Details Dialog */}
+      <Dialog open={isAllocationDialogOpen} onOpenChange={setIsAllocationDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Train className="h-5 w-5" />
+              Train Allocation Details - TR-{String(selectedTrainId || 0).padStart(3, "0")}
+            </DialogTitle>
+            <DialogDescription>
+              Detailed view of all products allocated to this train
+            </DialogDescription>
+          </DialogHeader>
+          
+          {allocationDetails.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium">No Allocations Found</p>
+              <p className="text-sm">This train has no product allocations yet.</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-gray-600">
+                  {allocationDetails.length} allocation{allocationDetails.length !== 1 ? 's' : ''} found
+                </p>
+                <Badge variant="outline">
+                  Total Space: {allocationDetails.reduce((sum, alloc) => sum + (alloc.total_space_used || 0), 0).toFixed(2)} units
+                </Badge>
+              </div>
+              
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Store</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Unit Space</TableHead>
+                      <TableHead>Total Space</TableHead>
+                      <TableHead>Order Date</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allocationDetails.map((allocation) => (
+                      <TableRow key={allocation.allocation_id}>
+                        <TableCell className="font-medium">
+                          <div>
+                            <div className="font-semibold">{allocation.product_name}</div>
+                            <div className="text-sm text-gray-500">ID: {allocation.product_id}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{allocation.customer_name}</div>
+                            <div className="text-sm text-gray-500">Order #{allocation.order_id}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{allocation.store_name}</div>
+                            <div className="text-sm text-gray-500">Store ID: {allocation.store_id}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center font-semibold">
+                          {allocation.allocated_qty}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {allocation.unit_space?.toFixed(2) || '0.00'}
+                        </TableCell>
+                        <TableCell className="text-center font-semibold text-blue-600">
+                          {allocation.total_space_used?.toFixed(2) || '0.00'}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="text-sm">{new Date(allocation.order_date).toLocaleDateString()}</div>
+                            <div className="text-xs text-gray-500">
+                              Required: {new Date(allocation.required_date).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={allocation.status === 'Allocated' ? 'default' : 
+                                   allocation.status === 'Shipped' ? 'secondary' : 'destructive'}
+                          >
+                            {allocation.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

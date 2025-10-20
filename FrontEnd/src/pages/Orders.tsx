@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Loader2, Plus, ChevronsUpDown, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -61,16 +62,20 @@ type Order = {
 type OrderDetails = Order; // Simplified, as Order already includes items
 
 type TrainTrip = {
-  trip_id: number;
-  train_no: string;
-  depart_time: string; // ISO or "YYYY-MM-DD HH:mm"
-  available_space: number;
-  destination: string;
+  train_id: number;
+  id: string; // e.g. TR-001
+  route: string; // e.g. Kandy → Colombo
+  departure: string; // HH:MM:SS
+  arrival: string; // HH:MM:SS
+  capacity: number;
+  utilized: number;
+  status: string;
 };
 
 const PAGE_SIZE = 50;
 
 export default function Orders() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -81,10 +86,6 @@ export default function Orders() {
   const [viewLoading, setViewLoading] = useState(false);
   const [viewOrder, setViewOrder] = useState<OrderDetails | null>(null);
   const [viewCustomer, setViewCustomer] = useState<Customer | null>(null);
-  const [isAllocationOpen, setIsAllocationOpen] = useState(false);
-  const [trains, setTrains] = useState<TrainTrip[]>([]);
-  const [allocationLoading, setAllocationLoading] = useState(false);
-  const [remainingSpace, setRemainingSpace] = useState(0);
 
   const [newOrder, setNewOrder] = useState<{
     customer_id: number | null;
@@ -191,35 +192,7 @@ export default function Orders() {
     }
   };
 
-  const fetchAvailableTrains = async (destination: string, orderDate: string) => {
-    // Assume API filters by destination and depart after order_date
-    const res = await fetch(
-      `http://localhost:8000/trains?destination=${destination}&depart_after=${orderDate}`
-    );
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.sort((a: TrainTrip, b: TrainTrip) => 
-      new Date(a.depart_time).getTime() - new Date(b.depart_time).getTime()
-    );
-  };
 
-  const allocateToTrain = async (tripId: number, allocSpace: number) => {
-    if (!viewOrder) return;
-    const token = localStorage.getItem("access_token");
-    const res = await fetch(`http://localhost:8000/orders/${viewOrder.order_id}/allocate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token ?? ""}`,
-      },
-      body: JSON.stringify({ trip_id: tripId, allocated_space: allocSpace }),
-    });
-    if (!res.ok) {
-      console.error(await res.text());
-      return false;
-    }
-    return true;
-  };
 
   const updateOrderStatus = async (status: string) => {
     if (!viewOrder) return;
@@ -237,32 +210,6 @@ export default function Orders() {
     }
   };
 
-  const handleAutoAllocate = async () => {
-    if (!viewOrder || !viewCustomer || remainingSpace <= 0) return;
-    setAllocationLoading(true);
-    let remaining = remainingSpace;
-    for (const train of trains) {
-      if (remaining <= 0) break;
-      const alloc = Math.min(train.available_space, remaining);
-      if (alloc > 0) {
-        const success = await allocateToTrain(train.trip_id, alloc);
-        if (success) {
-          remaining -= alloc;
-          // Refetch trains to update available_space
-          const updatedTrains = await fetchAvailableTrains(viewCustomer.city, viewOrder.order_date);
-          setTrains(updatedTrains);
-        }
-      }
-    }
-    setRemainingSpace(remaining);
-    if (remaining <= 0) {
-      await updateOrderStatus("Allocated");
-      setViewOrder({ ...viewOrder, status: "Allocated" });
-      setIsAllocationOpen(false);
-      fetchOrders(); // Refresh orders list
-    }
-    setAllocationLoading(false);
-  };
 
   // DESC by order_id and slice current page
   const pagedOrders = useMemo(() => {
@@ -279,22 +226,6 @@ export default function Orders() {
     fetchProducts();
   }, []);
 
-  useEffect(() => {
-    if (isAllocationOpen && viewOrder && viewCustomer) {
-      setAllocationLoading(true);
-      const loadTrains = async () => {
-        const trainsData = await fetchAvailableTrains(viewCustomer.city, viewOrder.order_date);
-        setTrains(trainsData);
-        const totalSpace = viewOrder.items.reduce((sum, i) => {
-          const prod = products.find((p) => p.product_id === i.product_id);
-          return sum + (prod ? prod.unit_space * i.quantity : 0);
-        }, 0);
-        setRemainingSpace(totalSpace);
-        setAllocationLoading(false);
-      };
-      loadTrains();
-    }
-  }, [isAllocationOpen, viewOrder, viewCustomer, products]);
 
   const addItem = () => {
     setNewOrder({
@@ -353,30 +284,6 @@ export default function Orders() {
     }
   };
 
-  const handleAllocateToTrain = async (train: TrainTrip) => {
-    if (remainingSpace <= 0 || allocationLoading) return;
-    setAllocationLoading(true);
-    const alloc = Math.min(train.available_space, remainingSpace);
-    if (alloc > 0) {
-      const success = await allocateToTrain(train.trip_id, alloc);
-      if (success) {
-        const updatedRemaining = remainingSpace - alloc;
-        setRemainingSpace(updatedRemaining);
-        // Refetch trains
-        if (viewCustomer && viewOrder) {
-          const updatedTrains = await fetchAvailableTrains(viewCustomer.city, viewOrder.order_date);
-          setTrains(updatedTrains);
-        }
-        if (updatedRemaining <= 0) {
-          await updateOrderStatus("Allocated");
-          setViewOrder({ ...viewOrder!, status: "Allocated" });
-          setIsAllocationOpen(false);
-          fetchOrders();
-        }
-      }
-    }
-    setAllocationLoading(false);
-  };
 
   return (
     <div className="p-6 space-y-6">
@@ -729,7 +636,15 @@ export default function Orders() {
               </div>
 
               {viewOrder.status === "Pending" && (
-                <Button onClick={() => setIsAllocationOpen(true)}>
+                <Button
+                  onClick={() => {
+                    if (!viewOrder?.order_id) {
+                      alert("Order ID missing, cannot navigate to allocation");
+                      return;
+                    }
+                    navigate(`/orders/${viewOrder.order_id}/allocate`);
+                  }}
+                >
                   Allocate to Train
                 </Button>
               )}
@@ -737,60 +652,11 @@ export default function Orders() {
           ) : (
             <div className="text-sm text-gray-600">No data.</div>
           )}
+        
         </DialogContent>
       </Dialog>
 
-      {/* Train Allocation Dialog */}
-      <Dialog open={isAllocationOpen} onOpenChange={setIsAllocationOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Allocate Order to Trains</DialogTitle>
-          </DialogHeader>
-          {allocationLoading ? (
-            <div className="flex items-center gap-2 text-sm">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <p>
-                Total Space Needed: <strong>{remainingSpace} units</strong>
-              </p>
-              <Button onClick={handleAutoAllocate} disabled={remainingSpace <= 0}>
-                Auto Allocate to Consecutive Trains
-              </Button>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Train No</TableHead>
-                    <TableHead>Depart Time</TableHead>
-                    <TableHead>Available Space</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {trains.map((train) => (
-                    <TableRow key={train.trip_id}>
-                      <TableCell>{train.train_no}</TableCell>
-                      <TableCell>{new Date(train.depart_time).toLocaleString()}</TableCell>
-                      <TableCell>{train.available_space} units</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleAllocateToTrain(train)}
-                          disabled={train.available_space <= 0 || remainingSpace <= 0}
-                        >
-                          Allocate Max
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {trains.length === 0 && <p className="text-sm text-gray-500">No available trains.</p>}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
+
 }

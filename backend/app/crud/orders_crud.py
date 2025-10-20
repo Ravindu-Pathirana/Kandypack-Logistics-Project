@@ -5,6 +5,7 @@ import os
 
 
 
+
 def get_db():
     return mysql.connector.connect(
         host=os.getenv("DB_HOST", "localhost"),
@@ -30,6 +31,7 @@ def create_order(order: OrderCreate):
             order.total_price,
             order.total_space,
         ))
+        
         order_id = cursor.lastrowid
 
         for item in order.items:
@@ -89,9 +91,29 @@ def get_order_items(order_id: int):
     cursor = conn.cursor(dictionary=True)
 
     query = """
-        SELECT oi.order_id, oi.product_id, oi.quantity, oi.unit_price, p.product_name, p.unit_space
+        SELECT 
+            oi.order_id,
+            oi.product_id,
+            oi.quantity,
+            GREATEST(
+                oi.quantity - COALESCE(alloc.total_allocated, 0),
+                0
+            ) AS remaining_qty,
+            oi.unit_price,
+            p.product_name,
+            p.unit_space
         FROM orderitem oi
         JOIN product p ON oi.product_id = p.product_id
+        LEFT JOIN (
+            SELECT 
+                ta.order_id,
+                ta.product_id,
+                COALESCE(SUM(ta.allocated_qty), 0) AS total_allocated
+            FROM TrainAllocation ta
+            WHERE ta.status IN ('Allocated','Shipped','Delivered')
+            GROUP BY ta.order_id, ta.product_id
+        ) AS alloc
+            ON alloc.order_id = oi.order_id AND alloc.product_id = oi.product_id
         WHERE oi.order_id = %s
     """
 

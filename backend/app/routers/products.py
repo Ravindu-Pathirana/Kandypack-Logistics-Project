@@ -42,12 +42,9 @@ def delete_product_endpoint(product_id: int, current_user=Depends(get_current_us
     """
     Deletes a product by ID. Only accessible to admin users.
     """
-<<<<<<< HEAD
     return delete_product(product_id, current_user.role)
-=======
     return delete_product(product_id, current_user.role, current_user.store_id)
 
 @router.get("/")
 def list_products():
     return product_crud.get_products()
->>>>>>> 9e86c40 (WIP: local changes before merge)

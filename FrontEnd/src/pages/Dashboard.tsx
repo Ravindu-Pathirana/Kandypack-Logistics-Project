@@ -189,6 +189,7 @@ const Dashboard = () => {
         <div className="space-y-3"><h3 className="text-xs font-semibold uppercase text-blue-200 px-1">Stores</h3><Button className="w-full justify-start gap-3 bg-white/20 hover:bg-white/30 text-white border border-white/30" onClick={() => navigate('/manage/stores')}><Building2 className="h-4 w-4" /> Manage Stores</Button></div>
         <div className="space-y-3"><h3 className="text-xs font-semibold uppercase text-blue-200 px-1">Inventory</h3><Button className="w-full justify-start gap-3 bg-white/20 hover:bg-white/30 text-white border border-white/30" onClick={() => navigate('/manage/products')}><ProductIcon className="h-4 w-4" /> Manage Products</Button></div>
         <div className="space-y-3"><h3 className="text-xs font-semibold uppercase text-blue-200 px-1">Fleet</h3><Button className="w-full justify-start gap-3 bg-white/20 hover:bg-white/30 text-white border border-white/30" onClick={() => navigate('/manage/trucks')}><Truck className="h-4 w-4" /> Manage Trucks</Button></div>
+        <div className="space-y-3"><h3 className="text-xs font-semibold uppercase text-blue-200 px-1">Customers</h3><Button className="w-full justify-start gap-3 bg-white/20 hover:bg-white/30 text-white border border-white/30" onClick={() => navigate('/manage/customers')}><Users className="h-4 w-4" /> Manage Customers</Button></div>
         
       </div>
 

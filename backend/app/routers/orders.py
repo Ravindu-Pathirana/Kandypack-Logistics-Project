@@ -1,9 +1,11 @@
 from fastapi import APIRouter
 from typing import List
-from app.models.order_models import OrderCreate, OrderResponse
+from app.models.order_models import OrderCreate, OrderResponse, TrainAllocationRequest
 from app.crud import orders_crud
 import mysql.connector
 import os
+from fastapi import HTTPException
+from fastapi import Request
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -36,6 +38,7 @@ def get_orders():
             o.order_date,
             o.required_date,
             o.status,
+            
             SUM(oi.quantity * oi.unit_price) AS total_price,
             o.total_space,
         FROM `order` o
@@ -55,9 +58,30 @@ def get_order_items(order_id: int):
     cursor = conn.cursor(dictionary=True)
 
     query = """
-        SELECT oi.order_id, oi.product_id, oi.quantity, oi.unit_price, p.product_name, p.unit_space
+        SELECT 
+            oi.order_id,
+            oi.product_id,
+            oi.quantity,
+            -- remaining quantity after allocations to this order/product
+            GREATEST(
+                oi.quantity - COALESCE(alloc.total_allocated, 0),
+                0
+            ) AS remaining_qty,
+            oi.unit_price,
+            p.product_name,
+            p.unit_space
         FROM orderitem oi
         JOIN product p ON oi.product_id = p.product_id
+        LEFT JOIN (
+            SELECT 
+                ta.order_id,
+                ta.product_id,
+                COALESCE(SUM(ta.allocated_qty), 0) AS total_allocated
+            FROM TrainAllocation ta
+            WHERE ta.status IN ('Allocated','Shipped','Delivered')
+            GROUP BY ta.order_id, ta.product_id
+        ) AS alloc
+            ON alloc.order_id = oi.order_id AND alloc.product_id = oi.product_id
         WHERE oi.order_id = %s
     """
 
@@ -68,3 +92,88 @@ def get_order_items(order_id: int):
     conn.close()
 
     return items
+
+
+@router.post("/{order_id}/allocate")
+async def allocate_order_to_train(order_id: int, allocation: TrainAllocationRequest, request: Request):
+    """
+    Insert a row into TrainAllocation for the given order.
+    Validates available capacity on the train.
+    """
+    try:
+        raw = await request.body()
+        print(f"/orders/{order_id}/allocate headers: {dict(request.headers)}")
+        print(f"/orders/{order_id}/allocate raw body: {raw.decode('utf-8', errors='ignore')}")
+    except Exception:
+        pass
+
+    print(f"Received allocation request: {allocation}")  # Debug log
+    
+    train_id = allocation.train_id
+    product_id = allocation.product_id
+    allocated_qty = allocation.allocated_qty
+    store_id = allocation.store_id
+    
+    if allocated_qty <= 0:
+        raise HTTPException(status_code=400, detail="allocated_qty must be > 0")
+
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # fetch product unit space if not provided
+        unit_space = allocation.unit_space
+        if unit_space is None:
+            cursor.execute("SELECT unit_space FROM Product WHERE product_id=%s", (product_id,))
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Product not found")
+            unit_space = float(row["unit_space"])  # type: ignore
+
+        # capacity and utilized for the train
+        cursor.execute(
+            """
+            SELECT t.capacity_space AS capacity
+            FROM Train t
+            WHERE t.train_id=%s
+            """,
+            (train_id,),
+        )
+        trow = cursor.fetchone()
+        if not trow:
+            raise HTTPException(status_code=404, detail="Train not found")
+        capacity = float(trow["capacity"])  # type: ignore
+
+        cursor.execute(
+            """
+            SELECT COALESCE(SUM(ta.allocated_qty * p.unit_space), 0) AS utilized
+            FROM TrainAllocation ta
+            JOIN Product p ON ta.product_id = p.product_id
+            WHERE ta.train_id=%s
+            """,
+            (train_id,),
+        )
+        urow = cursor.fetchone()
+        utilized = float(urow["utilized"]) if urow and urow["utilized"] is not None else 0.0
+
+        this_allocation_space = float(allocated_qty) * float(unit_space)
+        if utilized + this_allocation_space > capacity + 1e-9:
+            raise HTTPException(status_code=409, detail="Not enough space on the train")
+
+        # Insert allocation
+        cursor.execute(
+            """
+            INSERT INTO TrainAllocation (
+                train_id, order_id, product_id, store_id, allocated_qty,
+                start_date_time, status, unit_space
+            ) VALUES (%s,%s,%s,%s,%s, NOW(), 'Allocated', %s)
+            """,
+            (train_id, order_id, product_id, store_id, allocated_qty, unit_space),
+        )
+        conn.commit()
+        return {"trip_id": cursor.lastrowid, "message": "Allocated"}
+    except mysql.connector.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()

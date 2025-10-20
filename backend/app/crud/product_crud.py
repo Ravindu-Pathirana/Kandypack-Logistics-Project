@@ -68,6 +68,7 @@ def create_product_type(product_type: ProductTypeCreate, user_role: str):
         cursor.close()
         conn.close()
 
+
 def get_products(role: str, store_id: int):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
