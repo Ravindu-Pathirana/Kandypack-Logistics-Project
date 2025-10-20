@@ -123,3 +123,21 @@ DELIMITER ;
 
 
 
+DELIMITER $$
+CREATE PROCEDURE `get_trucks_for_user`(
+    IN p_role VARCHAR(50),
+    IN p_store_id INT
+)
+BEGIN
+    IF p_role = 'store_manager' THEN
+        SELECT t.truck_id,
+               t.plate_number,
+               t.is_available
+        FROM truck t
+        WHERE t.store_id = p_store_id;
+    ELSE
+        SELECT *
+        FROM truck;
+    END IF;
+END$$
+DELIMITER ;

@@ -5,12 +5,12 @@ from app.models.truck_models import TruckCreate
 # Pydantic schema for truck creation
 
 
-def create_truck(truck: TruckCreate, user_store_id: int):
+def create_truck(truck: TruckCreate, user_store_id: int, role: str):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     
     # Validate store_id matches user's store_id
-    if truck.store_id != user_store_id:
+    if  role != "admin" and truck.store_id != user_store_id:
         raise HTTPException(status_code=403, detail="Cannot create truck for a different store")
     
     # Validate plate number length
@@ -38,3 +38,20 @@ def create_truck(truck: TruckCreate, user_store_id: int):
     finally:
         cursor.close()
         conn.close()
+
+
+
+def get_trucks(role: str, store_id: int):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+
+    # Call the role/store-based procedure
+    cursor.callproc("get_trucks_for_user", [role, store_id])
+
+    results = []
+    for res in cursor.stored_results():
+        results = res.fetchall()
+
+    cursor.close()
+    conn.close()
+    return results
