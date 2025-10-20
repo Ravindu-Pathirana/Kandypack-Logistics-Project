@@ -132,7 +132,7 @@ def create_product(product: ProductCreate, user_role: str):
         conn.close()
 
 
-def delete_product(product_id: int, user_role: str, store_id: int):
+def delete_product(product_id: int, user_role: str):
     if user_role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can delete products")
 
@@ -140,9 +140,9 @@ def delete_product(product_id: int, user_role: str, store_id: int):
     cursor = conn.cursor(dictionary=True)
     try:
         # Check if product exists and belongs to the user's store
-        cursor.execute("SELECT product_id FROM product WHERE product_id = %s AND store_id = %s", (product_id, store_id))
+        cursor.execute("SELECT product_id FROM product WHERE product_id = %s ", (product_id, ))
         if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Product not found or does not belong to your store")
+            raise HTTPException(status_code=404, detail="Product not found ")
 
         query = "DELETE FROM product WHERE product_id = %s"
         cursor.execute(query, (product_id,))
@@ -153,7 +153,7 @@ def delete_product(product_id: int, user_role: str, store_id: int):
         return {"detail": "Product deleted successfully"}
     except Exception as e:
         conn.rollback()
-        raise HTTPException(status_code=500, detail="Database error")
+        raise HTTPException(status_code=500, detail=f"{e}")
     finally:
         cursor.close()
         conn.close()

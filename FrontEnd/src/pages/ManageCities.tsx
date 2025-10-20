@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -16,29 +17,18 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  MapPin,
-  Plus,
-  Search,
-  Trash2,
-  Edit2,
-  Loader2,
-  X,
-} from "lucide-react";
+import { MapPin, Plus, Search, Loader2, ArrowLeft } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 const ManageCities = ({ isOpen, onClose }) => {
+  const navigate = useNavigate();
   const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [newCity, setNewCity] = useState({
-    city_name: "",
-    state: "",
-    country: "Sri Lanka",
-  });
+  const [newCityName, setNewCityName] = useState("");
 
   // Helper function to get auth headers
   const getAuthHeaders = () => {
@@ -86,8 +76,8 @@ const ManageCities = ({ isOpen, onClose }) => {
 
   // Add new city
   const handleAddCity = async () => {
-    if (!newCity.city_name.trim() || !newCity.state.trim()) {
-      alert("Please fill in all required fields");
+    if (!newCityName.trim()) {
+      alert("Please enter a city name");
       return;
     }
 
@@ -98,9 +88,7 @@ const ManageCities = ({ isOpen, onClose }) => {
         method: "POST",
         headers,
         body: JSON.stringify({
-          city_name: newCity.city_name,
-          state: newCity.state,
-          country: newCity.country,
+          city_name: newCityName,
         }),
       });
 
@@ -111,7 +99,7 @@ const ManageCities = ({ isOpen, onClose }) => {
 
       const result = await response.json();
       setCities([...cities, result]);
-      setNewCity({ city_name: "", state: "", country: "Sri Lanka" });
+      setNewCityName("");
       setShowAddModal(false);
       setError(null);
     } catch (err) {
@@ -122,37 +110,11 @@ const ManageCities = ({ isOpen, onClose }) => {
     }
   };
 
-  // Delete city
-  const handleDeleteCity = async (cityId) => {
-    if (!window.confirm("Are you sure you want to delete this city?")) return;
-
-    try {
-      setLoading(true);
-      const headers = getAuthHeaders();
-      const response = await fetch(`${API_BASE}/cities/${cityId}`, {
-        method: "DELETE",
-        headers,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to delete city");
-      }
-
-      setCities(cities.filter((c) => c.id !== cityId));
-      setError(null);
-    } catch (err) {
-      console.error("Error deleting city:", err);
-      setError(err.message || "Error deleting city");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Delete action removed per request
 
   // Filter cities based on search
   const filteredCities = cities.filter((city) =>
-    city.city_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    city.state?.toLowerCase().includes(searchTerm.toLowerCase())
+    city.city_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (!isOpen) return null;
@@ -160,20 +122,21 @@ const ManageCities = ({ isOpen, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              Manage Cities
-            </CardTitle>
-            <CardDescription>Add and manage delivery cities</CardDescription>
+        <CardHeader className="pb-4 border-b">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" onClick={() => navigate("/")} className="h-8 px-2">
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+            <div className="text-center flex-1">
+              <CardTitle className="flex items-center justify-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Manage Cities
+              </CardTitle>
+              <CardDescription>Add and manage cities</CardDescription>
+            </div>
+            <div className="w-[72px]" />
           </div>
-          <button
-            onClick={onClose}
-            className="hover:opacity-70 transition-opacity"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </CardHeader>
 
         <CardContent className="pt-6 space-y-6">
@@ -205,7 +168,8 @@ const ManageCities = ({ isOpen, onClose }) => {
             </Button>
           </div>
 
-          {/* Cities List */}
+          {/* Cities List */
+          }
           {loading && !showAddModal ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -218,23 +182,11 @@ const ManageCities = ({ isOpen, onClose }) => {
             <div className="space-y-2">
               {filteredCities.map((city) => (
                 <div
-                  key={city.id}
+                  key={city.city_id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <div className="space-y-1 flex-1">
                     <p className="font-medium">{city.city_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {city.state}, {city.country}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleDeleteCity(city.id)}
-                      className="p-2 hover:bg-red-100 rounded-md text-red-600 transition-colors"
-                      disabled={loading}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
               ))}
@@ -253,30 +205,8 @@ const ManageCities = ({ isOpen, onClose }) => {
                 <label className="text-sm font-medium">City Name *</label>
                 <Input
                   placeholder="e.g., Colombo"
-                  value={newCity.city_name}
-                  onChange={(e) =>
-                    setNewCity({ ...newCity, city_name: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">State/Province *</label>
-                <Input
-                  placeholder="e.g., Western"
-                  value={newCity.state}
-                  onChange={(e) =>
-                    setNewCity({ ...newCity, state: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Country</label>
-                <Input
-                  placeholder="e.g., Sri Lanka"
-                  value={newCity.country}
-                  onChange={(e) =>
-                    setNewCity({ ...newCity, country: e.target.value })
-                  }
+                  value={newCityName}
+                  onChange={(e) => setNewCityName(e.target.value)}
                 />
               </div>
             </div>

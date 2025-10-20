@@ -178,20 +178,21 @@ const ManageTrucks = ({ onBack }) => {
 
   return (
     <div className="p-8 space-y-6">
-      {/* Back button */}
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={onBack} className="gap-2">
-          <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-        </Button>
-      </div>
-
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Truck className="h-8 w-8" />
-          Manage Trucks
-        </h1>
-        <p className="text-muted-foreground">Add and manage fleet vehicles</p>
+      {/* Header with Back and centered title */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Button>
+        </div>
+        <div className="text-center flex-1">
+          <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
+            <Truck className="h-8 w-8" />
+            Manage Trucks
+          </h1>
+          <p className="text-muted-foreground">Add and manage fleet vehicles</p>
+        </div>
+        <div className="w-[72px]" />
       </div>
 
       {error && (
@@ -343,7 +344,7 @@ const ManageTrucks = ({ onBack }) => {
                     plate_number: e.target.value.toUpperCase(),
                   })
                 }
-                maxLength="10"
+                maxLength={10}
               />
             </div>
             <div className="space-y-2">
