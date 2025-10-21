@@ -7,7 +7,7 @@ from pydantic import BaseModel
 import os
 
 # ----- CONFIG -----
-pwd_context = CryptContext(schemes=['bcrypt'], deprecated="auto")
+pwd_context = CryptContext(schemes=['bcrypt'], deprecated="auto" )
 SECRET_KEY = os.getenv("JWT_SECRET", "supersecret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60

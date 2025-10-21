@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -121,7 +123,7 @@ const TrainSchedule = () => {
   useEffect(() => {
     const fetchTrains = async () => {
       try {
-        const response = await fetch("http://localhost:8000/trains/");
+        const response = await fetch(`${API_BASE}/trains/`);
         if (!response.ok) throw new Error("Failed to fetch train schedules");
         const data = await response.json();
         setTrainRoutes(data);
@@ -151,7 +153,7 @@ const TrainSchedule = () => {
         }
         payload.departure_date_time = values.departure_date_time + ":00";
         payload.arrival_date_time = values.arrival_date_time + ":00";
-        const response = await fetch("http://localhost:8000/trains/", {
+        const response = await fetch(`${API_BASE}/trains/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -163,7 +165,7 @@ const TrainSchedule = () => {
         }
         payload.departure_time = values.departure_time + ":00";
         payload.arrival_time = values.arrival_time + ":00";
-        const response = await fetch("http://localhost:8000/trains/templates/", {
+        const response = await fetch(`${API_BASE}/trains/templates/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -174,7 +176,7 @@ const TrainSchedule = () => {
       toast.success(`${values.schedule_type} added successfully`);
       setIsFormOpen(false);
       trainForm.reset();
-      const updatedTrains = await fetch("http://localhost:8000/trains/").then(res => res.json());
+      const updatedTrains = await fetch(`${API_BASE}/trains/`).then(res => res.json());
       setTrainRoutes(updatedTrains);
     } catch (err) {
       toast.error(err.message || "Failed to add schedule");
@@ -188,7 +190,7 @@ const TrainSchedule = () => {
   const fetchTrainAllocations = async (trainId: number) => {
     setAllocationLoading(true);
     try {
-      const response = await fetch(`http://localhost:8000/trains/${trainId}/allocations`);
+      const response = await fetch(`${API_BASE}/trains/${trainId}/allocations`);
       if (!response.ok) throw new Error("Failed to fetch allocation details");
       const data = await response.json();
       setAllocationDetails(data);
@@ -234,8 +236,8 @@ const TrainSchedule = () => {
           <Button
             variant="outline"
             onClick={async () => {
-              await fetch("http://localhost:8000/trains/generate", { method: "POST" });
-              const updated = await fetch("http://localhost:8000/trains/").then(r => r.json());
+              await fetch(`${API_BASE}/trains/generate`, { method: "POST" });
+              const updated = await fetch(`${API_BASE}/trains/`).then(r => r.json());
               setTrainRoutes(updated);
             }}
           >

@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import orders, trains, reports,products, employees, auth, drivers, trucks, stores, cities, customers1, customers, customertypes, dashbord, truck_delivery
+from app.routers import orders, trains, reports,products, employees, auth, drivers, trucks, stores, cities, customers1, customers, customertypes, dashbord, truck_delivery, trains_chamodh
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI (
@@ -10,7 +10,7 @@ app = FastAPI (
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080"],  # Match your frontend port
+    allow_origins=["http://localhost:5173", "http://localhost:8080"],  # Match your frontend port
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
     allow_headers=["*"],  # Allow all headers
@@ -32,6 +32,7 @@ app.include_router(products.router, tags=["products"])
 app.include_router(customertypes.router, tags=["customertypes"])
 app.include_router(dashbord.router,tags=["dashboard"])
 app.include_router(truck_delivery.router, tags=["truck_delivery"])
+app.include_router(trains_chamodh.router, tags=["trains_chamodh"])
 
 app.add_middleware(
     CORSMiddleware,

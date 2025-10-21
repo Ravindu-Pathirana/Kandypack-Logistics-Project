@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Plus, ChevronsUpDown, Trash2 } from "lucide-react";
+import { Loader2, Plus, ChevronsUpDown, Trash2, Search } from "lucide-react";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 import {
   Dialog,
   DialogContent,
@@ -59,14 +61,14 @@ type Order = {
   items: OrderItem[];
 };
 
-type OrderDetails = Order; // Simplified, as Order already includes items
+type OrderDetails = Order;
 
 type TrainTrip = {
   train_id: number;
-  id: string; // e.g. TR-001
-  route: string; // e.g. Kandy → Colombo
-  departure: string; // HH:MM:SS
-  arrival: string; // HH:MM:SS
+  id: string;
+  route: string;
+  departure: string;
+  arrival: string;
   capacity: number;
   utilized: number;
   status: string;
@@ -86,6 +88,11 @@ export default function Orders() {
   const [viewLoading, setViewLoading] = useState(false);
   const [viewOrder, setViewOrder] = useState<OrderDetails | null>(null);
   const [viewCustomer, setViewCustomer] = useState<Customer | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [newOrder, setNewOrder] = useState<{
     customer_id: number | null;
@@ -107,24 +114,34 @@ export default function Orders() {
 
   // Fetch data
   const fetchOrders = async () => {
-    const res = await fetch("http://localhost:8000/orders");
-    if (!res.ok) return;
-    const data = await res.json();
-    setOrders(data);
+    try {
+      const res = await fetch(`${API_BASE}/orders`);
+      if (!res.ok) throw new Error('Failed to fetch orders');
+      const data = await res.json();
+      setOrders(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error fetching orders:", err);
+      setOrders([]);
+    }
   };
 
   const fetchCustomers = async () => {
-    const res = await fetch("http://localhost:8000/customers/");
-    if (!res.ok) return;
-    const data = await res.json();
-    console.log("Fetched customers:", data);
-    setCustomers(data);
+    try {
+      const res = await fetch(`${API_BASE}/customers/`);
+      if (!res.ok) throw new Error('Failed to fetch customers');
+      const data = await res.json();
+      console.log("Fetched customers:", data);
+      setCustomers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error fetching customers:", err);
+      setCustomers([]);
+    }
   };
 
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem("access_token");
-      const res = await fetch("http://localhost:8000/products", {
+      const res = await fetch(`${API_BASE}/products`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -148,10 +165,15 @@ export default function Orders() {
   };
 
   const fetchCustomer = async (customerId: number) => {
-    const res = await fetch(`http://localhost:8000/customers/${customerId}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data;
+    try {
+      const res = await fetch(`${API_BASE}/customers/${customerId}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error("Error fetching customer:", err);
+      return null;
+    }
   };
 
   const openViewDetails = async (orderId: number) => {
@@ -161,7 +183,7 @@ export default function Orders() {
       const token = localStorage.getItem("access_token");
 
       // Fetch order summary
-      const res = await fetch(`http://localhost:8000/orders/${orderId}`, {
+      const res = await fetch(`${API_BASE}/orders/${orderId}`, {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       const data = await res.json();
@@ -177,8 +199,8 @@ export default function Orders() {
       const customer = await fetchCustomer(order.customer_id);
       setViewCustomer(customer);
 
-      // 🔹 Fetch order items
-      const itemsRes = await fetch(`http://localhost:8000/orders/${orderId}/items`, {
+      // Fetch order items
+      const itemsRes = await fetch(`${API_BASE}/orders/${orderId}/items`, {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       const items = itemsRes.ok ? await itemsRes.json() : [];
@@ -192,40 +214,76 @@ export default function Orders() {
     }
   };
 
-
-
   const updateOrderStatus = async (status: string) => {
     if (!viewOrder) return;
-    const token = localStorage.getItem("access_token");
-    const res = await fetch(`http://localhost:8000/orders/${viewOrder.order_id}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token ?? ""}`,
-      },
-      body: JSON.stringify({ status }),
-    });
-    if (!res.ok) {
-      console.error(await res.text());
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${API_BASE}/orders/${viewOrder.order_id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        console.error(await res.text());
+      }
+    } catch (err) {
+      console.error("Error updating order status:", err);
     }
   };
 
+  // Filter orders based on search query
+  const filteredOrders = useMemo(() => {
+    if (!searchQuery.trim()) return orders;
+    
+    const query = searchQuery.toLowerCase();
+    return orders.filter((order) => {
+      const customer = customers.find((c) => c.customer_id === order.customer_id);
+      return (
+        order.order_id.toString().includes(query) ||
+        (customer?.customer_name || '').toLowerCase().includes(query) ||
+        order.status.toLowerCase().includes(query) ||
+        new Date(order.order_date).toLocaleDateString().includes(query) ||
+        new Date(order.required_date).toLocaleDateString().includes(query)
+      );
+    });
+  }, [orders, customers, searchQuery]);
 
   // DESC by order_id and slice current page
   const pagedOrders = useMemo(() => {
-    const sorted = [...orders].sort((a, b) => b.order_id - a.order_id);
+    const sorted = [...filteredOrders].sort((a, b) => b.order_id - a.order_id);
     const start = (page - 1) * PAGE_SIZE;
     return sorted.slice(start, start + PAGE_SIZE);
-  }, [orders, page]);
+  }, [filteredOrders, page]);
 
-  const totalPages = Math.max(1, Math.ceil(orders.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
 
   useEffect(() => {
-    fetchOrders();
-    fetchCustomers();
-    fetchProducts();
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        await Promise.all([
+          fetchOrders(),
+          fetchCustomers(),
+          fetchProducts()
+        ]);
+      } catch (err) {
+        console.error("Error loading data:", err);
+        setError("Failed to load data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
+  // Reset to first page when search changes
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
 
   const addItem = () => {
     setNewOrder({
@@ -245,54 +303,101 @@ export default function Orders() {
       alert("Please fix errors and select a customer before submitting the order.");
       return;
     }
-    const total_quantity = newOrder.items.reduce((sum, i) => sum + i.quantity, 0);
-    const total_price = newOrder.items.reduce(
-      (sum, i) => sum + i.quantity * i.unit_price,
-      0
-    );
-    const total_space = newOrder.items.reduce((sum, i) => {
-      const prod = products.find((p) => p.product_id === i.product_id);
-      return sum + (prod ? prod.unit_space * i.quantity : 0);
-    }, 0);
     
-    const orderData = {
-      ...newOrder,
-      total_quantity,
-      total_price,
-      total_space
-    };
+    try {
+      const total_quantity = newOrder.items.reduce((sum, i) => sum + i.quantity, 0);
+      const total_price = newOrder.items.reduce(
+        (sum, i) => sum + i.quantity * i.unit_price,
+        0
+      );
+      const total_space = newOrder.items.reduce((sum, i) => {
+        const prod = products.find((p) => p.product_id === i.product_id);
+        return sum + (prod ? prod.unit_space * i.quantity : 0);
+      }, 0);
+      
+      const orderData = {
+        ...newOrder,
+        total_quantity,
+        total_price,
+        total_space
+      };
 
-    const res = await fetch("http://localhost:8000/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(orderData),
-    });
-
-    if (res.ok) {
-      setIsNewOrderOpen(false);
-      fetchOrders();
-      setNewOrder({
-        customer_id: null,
-        order_date: "",
-        required_date: "",
-        status: "Pending",
-        items: [],
+      const res = await fetch(`${API_BASE}/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData),
       });
-      setSelectedCustomer("");
-    } else {
-      console.error(await res.text());
+
+      if (res.ok) {
+        setIsNewOrderOpen(false);
+        await fetchOrders();
+        setNewOrder({
+          customer_id: null,
+          order_date: "",
+          required_date: "",
+          status: "Pending",
+          items: [],
+        });
+        setSelectedCustomer("");
+      } else {
+        const errorText = await res.text();
+        console.error("Failed to create order:", errorText);
+        alert("Failed to create order. Please try again.");
+      }
+    } catch (err) {
+      console.error("Error submitting order:", err);
+      alert("Failed to create order. Please try again.");
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading orders...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-800">{error}</p>
+          <Button onClick={() => window.location.reload()} className="mt-2">
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-xl font-bold">Orders</h1>
         <Button onClick={() => setIsNewOrderOpen(true)}>
-          <Plus className="h-4 w-4" /> New Order
+          <Plus className="h-4 w-4 mr-2" /> New Order
         </Button>
       </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        <Input
+          placeholder="Search orders by ID, customer, status, or date..."
+          className="w-full pl-10 pr-4 py-2"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+
+      {/* Results Info */}
+      {searchQuery.trim() && (
+        <div className="text-sm text-muted-foreground">
+          Showing {filteredOrders.length} of {orders.length} orders
+        </div>
+      )}
 
       {/* Orders Table */}
       <Table>
@@ -314,25 +419,32 @@ export default function Orders() {
             return (
               <TableRow key={order.order_id}>
                 <TableCell>ORD-{String(order.order_id).padStart(3, "0")}</TableCell>
-                <TableCell>{customer?.customer_name}</TableCell>
+                <TableCell>{customer?.customer_name || 'Unknown'}</TableCell>
                 <TableCell>{order.status}</TableCell>
                 <TableCell>{new Date(order.order_date).toLocaleDateString()}</TableCell>
                 <TableCell>{new Date(order.required_date).toLocaleDateString()}</TableCell>
                 <TableCell>{order.total_quantity}</TableCell>
                 <TableCell>Rs. {order.total_price.toLocaleString()}</TableCell>
                 <TableCell>
-                  <Button variant="outline" onClick={() => openViewDetails(order.order_id)}>
+                  <Button variant="outline" size="sm" onClick={() => openViewDetails(order.order_id)}>
                     View Details
                   </Button>
                 </TableCell>
               </TableRow>
             );
           })}
+          {pagedOrders.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={8} className="h-24 text-center">
+                {searchQuery.trim() ? "No orders match your search." : "No orders found."}
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
 
       {/* Pagination */}
-      {orders.length > PAGE_SIZE && (
+      {filteredOrders.length > PAGE_SIZE && (
         <div className="flex items-center justify-center gap-3 mt-6">
           <Button
             variant="outline"
@@ -342,7 +454,7 @@ export default function Orders() {
             Prev
           </Button>
           <span className="text-sm">
-            Page <strong>{page}</strong> / {totalPages}
+            Page <strong>{page}</strong> / {totalPages} ({filteredOrders.length} total)
           </span>
           <Button
             variant="outline"
@@ -356,7 +468,7 @@ export default function Orders() {
 
       {/* New Order Dialog */}
       <Dialog open={isNewOrderOpen} onOpenChange={setIsNewOrderOpen}>
-        <DialogContent className="max-w-5xl">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">🛒 New Order</DialogTitle>
           </DialogHeader>
@@ -369,7 +481,7 @@ export default function Orders() {
                 <Button
                   variant="outline"
                   role="combobox"
-                  className="w-full justify-between text-lg py-6"
+                  className="w-full justify-between text-lg py-6 mt-1"
                 >
                   {selectedCustomer
                     ? customers.find((c) => String(c.customer_id) === selectedCustomer)
@@ -410,6 +522,7 @@ export default function Orders() {
                 type="date"
                 value={newOrder.order_date}
                 onChange={(e) => setNewOrder({ ...newOrder, order_date: e.target.value })}
+                className="mt-1"
               />
             </div>
             <div>
@@ -438,6 +551,7 @@ export default function Orders() {
                     setNewOrder({ ...newOrder, required_date: requiredDate });
                   }
                 }}
+                className="mt-1"
               />
               {dateError && <p className="text-red-500 text-sm mt-1">{dateError}</p>}
             </div>
@@ -447,6 +561,7 @@ export default function Orders() {
                 type="text"
                 value={newOrder.status}
                 onChange={(e) => setNewOrder({ ...newOrder, status: e.target.value })}
+                className="mt-1"
               />
             </div>
           </div>
@@ -492,20 +607,21 @@ export default function Orders() {
                     type="number"
                     min="1"
                     value={item.quantity}
-                    onChange={(e) => updateItem(idx, "quantity", parseInt(e.target.value))}
+                    onChange={(e) => updateItem(idx, "quantity", parseInt(e.target.value) || 1)}
                   />
 
                   <Input
                     type="number"
                     step="0.01"
                     value={item.unit_price}
-                    onChange={(e) => updateItem(idx, "unit_price", parseFloat(e.target.value))}
+                    onChange={(e) => updateItem(idx, "unit_price", parseFloat(e.target.value) || 0)}
                   />
 
                   <span className="text-center">Rs. {lineTotal.toFixed(2)}</span>
 
                   <Button
                     variant="destructive"
+                    size="sm"
                     onClick={() => {
                       const items = [...newOrder.items];
                       items.splice(idx, 1);
@@ -560,10 +676,9 @@ export default function Orders() {
         </DialogContent>
       </Dialog>
 
-
       {/* View Details Dialog */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Order Details</DialogTitle>
           </DialogHeader>
@@ -655,8 +770,6 @@ export default function Orders() {
         
         </DialogContent>
       </Dialog>
-
     </div>
   );
-
 }

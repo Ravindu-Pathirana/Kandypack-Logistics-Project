@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Loader2, ArrowLeft, Package, Train, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -88,13 +90,13 @@ export default function TrainAllocation() {
       const token = localStorage.getItem("access_token");
       
       // Fetch order summary
-      const orderRes = await fetch(`http://localhost:8000/orders/${orderId}`, {
+      const orderRes = await fetch(`${API_BASE}/orders/${orderId}`, {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       const orderData = await orderRes.json();
       
       // Fetch order items
-      const itemsRes = await fetch(`http://localhost:8000/orders/${orderId}/items`, {
+      const itemsRes = await fetch(`${API_BASE}/orders/${orderId}/items`, {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       const items = itemsRes.ok ? await itemsRes.json() : [];
@@ -104,7 +106,7 @@ export default function TrainAllocation() {
       
       // Fetch customer details
       if (fullOrder.customer_id) {
-        const customerRes = await fetch(`http://localhost:8000/customers/${fullOrder.customer_id}`);
+        const customerRes = await fetch(`${API_BASE}/customers/${fullOrder.customer_id}`);
         if (customerRes.ok) {
           const customerData = await customerRes.json();
           setCustomer(customerData);
@@ -121,7 +123,7 @@ export default function TrainAllocation() {
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem("access_token");
-      const res = await fetch("http://localhost:8000/products", {
+      const res = await fetch(`${API_BASE}/products`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -140,7 +142,7 @@ export default function TrainAllocation() {
   const fetchStores = async () => {
     try {
       const token = localStorage.getItem("access_token");
-      const res = await fetch("http://localhost:8000/stores", {
+      const res = await fetch(`${API_BASE}/stores`, {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       if (res.ok) {
@@ -160,7 +162,7 @@ export default function TrainAllocation() {
   // Fetch available trains filtered by customer destination
   const fetchAvailableTrains = async () => {
     try {
-      const res = await fetch("http://localhost:8000/trains/");
+      const res = await fetch(`${API_BASE}/trains/`);
       if (res.ok) {
         const data = await res.json();
         let filteredTrains = Array.isArray(data) ? data : [];
@@ -254,7 +256,7 @@ const allocateProductToTrain = async (
 
       console.log("Sending allocation request:", requestBody);
 
-      const res = await fetch(`http://localhost:8000/orders/${orderId}/allocate`, {
+      const res = await fetch(`${API_BASE}/orders/${orderId}/allocate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -424,7 +426,7 @@ const allocateProductToTrain = async (
     
     const token = localStorage.getItem("access_token");
     try {
-      const res = await fetch(`http://localhost:8000/orders/${order.order_id}`, {
+      const res = await fetch(`${API_BASE}/orders/${order.order_id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

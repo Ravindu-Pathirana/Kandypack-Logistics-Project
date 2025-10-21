@@ -13,13 +13,15 @@ import Drivers from "./pages/Drivers";
 import Reports from "./pages/Reports";
 import EmployeeDetails from "./pages/EmployeeDetails";
 import NotFound from "./pages/NotFound";
-import Login from "./pages/Login"; // your login page
+import Login from "./pages/Login";
 import ManageCitiesPage from "./pages/ManageCitiesPage";
 import ManageStoresPage from "./pages/ManageStoresPage";
 import ManageProductsPage from "./pages/ManageProductsPage";
 import ManageTrucksPage from "./pages/ManageTrucksPage";
 import CustomerManagement from "./pages/CustomerManagement";
 import RouteLoader from "./components/RouteLoader";
+import OrdersAtStore from "./pages/OrdersAtStore";
+import AssignDelivery from "./pages/OrderAssign"; // ✅ new page import
 
 const queryClient = new QueryClient();
 
@@ -41,16 +43,19 @@ const App = () => (
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
+
           {/* Protected routes */}
           <Route element={<PrivateRoute />}>
             <Route path="/" element={<Layout />}>
               <Route index element={<Dashboard />} />
               <Route path="orders" element={<Orders />} />
-              <Route path="/orders/:orderId/allocate" element={<TrainAllocation />} />
+              <Route path="orders/:orderId/allocate" element={<TrainAllocation />} />
+              <Route path="orders/at-store" element={<OrdersAtStore />} />
               <Route path="trains" element={<TrainSchedule />} />
               <Route path="routes" element={<RoutesPage />} />
               <Route path="drivers" element={<Drivers />} />
               <Route path="reports" element={<Reports />} />
+
               {/* Management pages */}
               <Route path="manage/cities" element={<ManageCitiesPage />} />
               <Route path="manage/stores" element={<ManageStoresPage />} />
@@ -58,6 +63,9 @@ const App = () => (
               <Route path="manage/trucks" element={<ManageTrucksPage />} />
               <Route path="manage/customers" element={<CustomerManagement />} />
               <Route path="employees/:id" element={<EmployeeDetails />} />
+
+              {/* ✅ New route for Assign Delivery */}
+              <Route path="assign-delivery" element={<AssignDelivery />} />
             </Route>
           </Route>
 
@@ -70,4 +78,3 @@ const App = () => (
 );
 
 export default App;
-

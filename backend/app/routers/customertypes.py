@@ -18,7 +18,7 @@ def get_connection():
 def get_customer_types():
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT customer_type_id, customer_type FROM customerType")
+    cursor.execute("SELECT customer_type_id, customer_type, credit_limit FROM customertype")
     rows = cursor.fetchall()
     cursor.close()
     conn.close()

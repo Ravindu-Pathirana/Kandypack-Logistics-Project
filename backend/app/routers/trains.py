@@ -130,3 +130,6 @@ def generate_now(days: int = Query(14, ge=1, le=60)):
         return {"generated_window_days": days, "current_window_rows": cnt}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -93,7 +95,7 @@ const CustomerManagement = () => {
   const fetchCustomers = async () => {
     try {
       const token = localStorage.getItem("access_token");
-      const response = await fetch("http://localhost:8000/customers/customers", {
+      const response = await fetch(`${API_BASE}/customers/customers`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Failed to fetch customers");
@@ -109,7 +111,7 @@ const CustomerManagement = () => {
   const fetchCustomerTypes = async () => {
     try {
       const token = localStorage.getItem("access_token");
-      const response = await fetch("http://localhost:8000/customers/customer-types", {
+      const response = await fetch(`${API_BASE}/customertypes/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Failed to fetch customer types");
@@ -125,7 +127,7 @@ const CustomerManagement = () => {
     setActionLoading(true);
     try {
       const token = localStorage.getItem("access_token");
-      const response = await fetch("http://localhost:8000/customers/customers", {
+      const response = await fetch(`${API_BASE}/customers/customers`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -155,7 +157,7 @@ const CustomerManagement = () => {
     setActionLoading(true);
     try {
       const token = localStorage.getItem("access_token");
-      const response = await fetch(`http://localhost:8000/customers/customers/${customerId}`, {
+      const response = await fetch(`${API_BASE}/customers/customers/${customerId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
